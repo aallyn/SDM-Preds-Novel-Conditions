@@ -1,44 +1,18 @@
 #####
-## Searching for mean/sd parameters to define normal species-response curves
+## Overview
 #####
 
-## What is the objective?
-# We want to find the the mean and sd for a normal species-response curve to temperature in each of the large marine ecosystems, which gets closest to an average 0.5 prevalance across months/years during the baseline period (1985-2004) and one mean/sd parameter set that minimizes the month to month variability to produce a "resident" species archetype and another that maximizes the month to month variability to produce a "seasonally migrating" species archetype. 
+# This script searches for mean/sd parameters to define normal species-response curves to SST in each large marine ecosystem to facilitate simulating the distribution of a resident-mobile and seasonally-migrating warm water species archetype. To do this, we search a combination of possible mean/sd values and then keep the ones that gets closest to an average 0.5 prevalance across months/years during the baseline period (1985-2004) and then the mean/sd parameter set that also minimizes the month to month variability to produce a "resident-mobile" species archetype and another that also maximizes the month to month variability to produce a "seasonally-migrating" species archetype. 
 
-## How can we do this -- smartly?
-# There are an infinite number of possible combinations, but we have limited comp power and time. So, trying to place some bounds on the parameter space to explore.
-# Means: We have already plotted the annual cycle for each of the years during the baseline period and had originally been using the mean/sd of those values for our parameterization. This got us close. Also, it's unlikely for a species to ever be in the system if its *average* preferred temperature falls at either the extreme warm or cold temperatures experienced in a region. To start then, we might think of proposing a sequence of 10 values ranging from the 0.2 to the 0.8 percentile of these temperatures. 
-# SDs: I always struggle a bit with SD. Just to remind myself, assuming a normal curve: ~68% of obs are within 1 SD, 95% within 2SD and 99% within 3SD. One place to start on the minimum side might be using the "range rule" to estimate an SD. We could propose that across the systems, the most "specialized" a species can be is that it is observed within a range of 4 degrees. Going to the range rule, this would give us a minimum SD value of 1. Now, how to bound the maximum SD. Cap at SD of the system? 
-
+## Load libraries and source functions
 ## Libraries
-library(tidyverse)
-library(sf)
 library(raster)
-library(zoo)
-library(lubridate)
-library(gbm)
-library(forecast)
-library(MLmetrics)
-library(PresenceAbsence)
-library(viridis)
-# library(facetscales)
-library(plotly)
-library(biscale)
-library(ggforce)
-library(gmRi)
-library(scales)
-library(geomtextpath)
-library(gganimate)
-library(geojsonio)
-library(dsmextra)
-library(distrEx)
-library(patchwork)
-library(binr)
-library(SDMTools)
-source("~/GitHub/ForecastingChallenge/scripts/SDM_PredValidation_Functions.R")
-source(here::here("pipelines/sim_spp/R/gen_vs_hab_suit.R"))
-source(here::here("pipelines/sim_spp/R/convert_vs_hab_suit.R"))
-res_data_path <- "/Users/aallyn/Library/CloudStorage/Box-Box/RES_Data/"
+library(virtualspecies)
+library(tidyverse)
+library(here)
+
+source(here::here("R functions/gen_vs_hab_suit.R"))
+source(here::here("R functions/convert_vs_hab_suit.R"))
 
 ## Set up stuff
 norm_func <- function(x, mean, sd) {
@@ -66,50 +40,39 @@ suit_to_pa<- function(prob.raster, ...)
 #####
 ## Regions
 #####
-land <- st_read(here::here("data/sim_spp/ne_50m_land.shp"))
+land <- st_read(here::here("data/ne_50m_land.shp"))
 
-lme_files <- list.files(here::here("data/sim_spp/region_shapefiles_lme"), full.names = TRUE)
-region_shapes <- data.frame("Region" = c("cc", "goa", "ne", "seaus", "wcentaus"), "Region_Long" = c("California_Current", "Gulf_of_Alaska", "Northeast_US_Shelf", "Southeast_Australia", "West_Central_Australia"), "File_Path" = unlist(lme_files)) %>%
+lme_files <- list.files(here::here("data/region_shapefiles_lme"), full.names = TRUE)
+region_shapes <- data.frame("Region" = c("cc", "ne"), "Region_Long" = c("California_Current", "Northeast_US_Shelf"), "File_Path" = unlist(lme_files)) %>%
     as_tibble() %>%
     mutate(., "Shapefile" = map(File_Path, st_read)) %>%
     dplyr::select(., -File_Path)
-region_shapes <- region_shapes[c(1, 3),]
-
-# lme_files <- list.files(here::here("data/sim_spp/region_shapefiles_lme"), full.names = TRUE)[[3]]
-# region_shapes <- data.frame("Region" = c("ne"), "Region_Long" = c("Northeast_US_Shelf"), "File_Path" = unlist(lme_files)) %>%
-#     as_tibble() %>%
-#     mutate(., "Shapefile" = map(File_Path, st_read)) %>%
-#     dplyr::select(., -File_Path)
 
 #####
 ## Covariates
 #####
-sst_rast <- raster::stack(here::here("data/sim_spp/habitat_covs/oisst/sst.grd"))
-depth_rast <- raster::stack(here::here("data/sim_spp/habitat_covs/depth/depth.grd"))
+sst_rast <- raster::stack(here::here("data/habitat_covs/oisst/sst.grd"))
+depth_rast <- raster::stack(here::here("data/habitat_covs/depth/depth.grd"))
 
 #####
-## Loop time??
+## Loop to get average annual prevalence and variablility given each mean/SD combination
 #####
 
 # Set up stuff
+# Time period to look over
 base_start <- as.Date("1985-01-01")
 base_end <- as.Date("2003-12-31")
-# mean_fixed <- 15.283
-# mean_range <- NULL
-# mean_samps <- 10
-# sd_fixed <- 4.785
-# sd_samps <- 10
-# sd_range<- NULL
 
+# Mean/SD ranges to search over
 mean_fixed<- NULL
-mean_range <- c(0.1, 0.9)
+mean_range <- NULL
 mean_samps <- 20
 sd_fixed<- NULL
 sd_samps<- 20
 sd_range<- 3
-hab_formula_use<- "depth + sst"
+hab_formula_use<- "0.1*depth + 1*sst"
 
-# Convert PA params -- will use rbinom
+# Parameters for convert continuous habitat suitability to presence/absence -- will use rbinom
 convert_pa_params_use<- data.frame("PA.method" = "custom", "beta" = "NULL", "alpha" = "NULL", "species.prevalence" = "NULL", "plot" = "NULL")
 
 res_out_all<- vector("list", length(lme_files))
@@ -154,7 +117,6 @@ for(i in seq_along(region_shapes$Region)){
 
         # Format vs functions based on proposed mean/sd
         vs_params <- format_vs_funcs(data.frame("Region" = rep(region_shapes$Region[i], 2), "variable" = c("depth", "sst"), "function_name" = rep("norm_func", 2), "mean" = c(depth_mean, res_out$Mean[j]), "sd" = c(depth_sd, res_out$SD[j])))
-        # vs_params <- format_vs_funcs(data.frame("Region" = rep(region_shapes$Region[i], 1), "variable" = c("sst"), "function_name" = rep("norm_func", 1), "mean" = c(res_out$Mean[j]), "sd" = c(res_out$SD[j])))
 
         # Habitat suitability
         hab_suit <- sim_vs_hab_suit(habitat_list = hab_list, vs_params = vs_params, habitat_formula = hab_formula_use, vs_rescale = FALSE, vs_species.type = NULL, vs_rescale.each.response = FALSE, vs_plot = FALSE)
@@ -196,7 +158,6 @@ for(i in seq_along(region_shapes$Region)){
         
         rbinom_fun <- function(i) {
             rbinom(prob = i, n = 1, size = 1)
-            #rbinom(i, n = 1, size = 1)
         }
 
         for(k in 1:nlyr(suitab_rasts)){
@@ -218,11 +179,9 @@ for(i in seq_along(region_shapes$Region)){
     res_out_all[[i]]<- res_out
 }
 
-## What do we want to keep?
-# Find value closest to 0.5 PREV with the LOWEST VAR = Resident
-# Find value closest to 0.5 PREV with the HIGHEST VAR and HIGHEST Mean = Leading seasonal
-# Find value closest to 0.5 PREV with the HIGHEST VAR and LOWEST Mean = Trailing seasonal
-
+#####
+## Processing the results to keep what we want prevalence closest to 0.5 and then min/max variability
+#####
 names(res_out_all)<- region_shapes$Region
 # Get to a nested dataframe...
 res_dat <- dplyr::bind_rows(res_out_all, .id = "Region") 
@@ -325,4 +284,4 @@ for(i in seq_along(res_dat_grp$Region)){
 }  
 
 
-write.csv(scens_out, here::here("data/sim_spp/SppEnvCurveParams.csv"))
+write.csv(scens_out, here::here("data/SppEnvCurveParams.csv"))

@@ -49,194 +49,113 @@ norm_func <- function(x, mean, sd) {
 }
 
 #####
-## Model prediction validation functions
-#####
-cog_diff_function <- function(x) {
-    cog_true <- COGravity(x = x$x, y = x$y, wt = x$Real)
-    cog_true_sf <- data.frame(x = cog_true[1], y = cog_true[3]) %>%
-        st_as_sf(., coords = c("x", "y"), crs = 4326)
-    cog_pred <- COGravity(x = x$x, y = x$y, wt = x$Pred)
-    cog_pred_sf <- data.frame(x = cog_pred[1], y = cog_pred[3]) %>%
-        st_as_sf(., coords = c("x", "y"), crs = 4326)
-    cog_diff <- st_distance(cog_true_sf, cog_pred_sf)
-    return(cog_diff)
-}
-cog_lat_pred_function <- function(x) {
-    cog_pred <- COGravity(x = x$x, y = x$y, wt = x$Pred)
-    return(cog_pred[3])
-}
-cog_lon_pred_function <- function(x) {
-    cog_pred <- COGravity(x = x$x, y = x$y, wt = x$Pred)
-    return(cog_pred[1])
-}
-cog_lat_true_function <- function(x) {
-    cog_true <- COGravity(x = x$x, y = x$y, wt = x$Real)
-    return(cog_true[3])
-}
-cog_lon_true_function <- function(x) {
-    cog_true <- COGravity(x = x$x, y = x$y, wt = x$Real)
-    return(cog_true[1])
-}
-cog_function <- function(x) {
-    cog_out <- COGravity(x = x$x, y = x$y, wt = x$value)
-    return(cog_out)
-}
-calib_function <- function(x) {
-    calib_out <- round(getECE(x$Real, x$Pred, n_bins = 10), 2)
-    return(calib_out)
-}
-optim_thresh_func<- function(x, method = "max.sensitivity+specificity"){
-    optim_thresh_all<- SDMTools::optim.thresh(x$Real, x$Pred, threshold = 101)
-    optim_thresh_out<- optim_thresh_all[[which(names(optim_thresh_all) == method)]]
-
-    if(length(optim_thresh_out) > 1){
-        optim_thresh_out<- median(optim_thresh_out)
-    }
-
-    return(optim_thresh_out)
-
-}
-conf_mat_func <- function(x, thresh) {
-    mat_out <- SDMTools::confusion.matrix(x$Real, x$Pred, threshold = thresh)
-    return(mat_out)
-}
-sens_func <- function(x) {
-    sens_out <- x[2, 2] / sum(x[, 2])
-    return(sens_out)
-}
-spec_func <- function(x) {
-    spec_out <- x[1, 1] / sum(x[, 1])
-    return(spec_out)
-}
-pr_auc_func <- function(x) {
-    pr_auc_out <- MLmetrics::PRAUC(x$Pred, x$Real)
-    return(pr_auc_out)
-}
-
-f1_func<- function(x) {
-    pred_pa<- ifelse(x$Pred > 0.5, "1", "0")
-    f1_out <- MLmetrics::F1_Score(pred_pa, x$Real, positive = "1")
-    return(f1_out)
-}
-rmse_func <- function(x) {
-    rmse_out <- MLmetrics::RMSE(x$Pred, x$Real)
-    return(rmse_out)
-}
-raw_diff_func <- function(x) {
-    diff_out <- x$Pred - x$HSI
-    return(mean(diff_out, na.rm = TRUE))
-}
-
-#####
 ## Regions -- always run
 #####
-land <- st_read(here::here("data/sim_spp/ne_50m_land.shp"))
-lme_files <- list.files(here::here("data/sim_spp/region_shapefiles_lme"), full.names = TRUE)
-region_dat <- data.frame("Region" = c("cc", "goa", "ne", "seaus", "wcentaus"), "Region_Long" = c("California_Current", "Gulf_of_Alaska", "Northeast_US_Shelf", "Southeast_Australia", "West_Central_Australia"), "File_Path" = unlist(lme_files)) %>%
+land <- st_read(here::here("data/ne_50m_land.shp"))
+lme_files <- list.files(here::here("data/region_shapefiles_lme"), full.names = TRUE)
+region_dat <- data.frame("Region" = c("cc", "ne"), "Region_Long" = c("California_Current", "Northeast_US_Shelf"), "File_Path" = unlist(lme_files)) %>%
     as_tibble() %>%
     mutate(., "Shapefile" = map(File_Path, st_read)) %>%
     dplyr::select(., -File_Path)
-region_dat <- region_dat %>%
-    filter(., Region %in% c("cc", "ne"))
 
 #####
 ## Global sea surface temperature patterns 
 ## !! WARNING THIS TAKES A WHILE TO RUN!!!!
 #####
 ## Global time series and SOM??
-oisst_path <- "/Users/aallyn/Library/CloudStorage/Box-Box/RES_Data/OISST/oisst_mainstays/regional_timeseries/large_marine_ecosystems/"
-oisst_all <- list.files(oisst_path, full.names = TRUE)
-cc_sst <- read.csv(oisst_all[which(grepl("california_current", oisst_all))]) %>%
-    mutate(., "Year" = format(as.Date(time), "%Y")) %>%
-    group_by(., Year) %>%
-    summarize_at(., "area_wtd_anom", mean) %>%
-    mutate(.,
-        "Year_Plot" = as.numeric(Year),
-        "Region" = rep("CCS")
-    )
-ne_sst <- read.csv(oisst_all[which(grepl("northeast_us_continental_shelf", oisst_all))]) %>%
-    mutate(., "Year" = format(as.Date(time), "%Y")) %>%
-    group_by(., Year) %>%
-    summarize_at(., "area_wtd_anom", mean) %>%
-    mutate(.,
-        "Year_Plot" = as.numeric(Year),
-        "Region" = rep("NES")
-    )
+# oisst_path <- "/Users/aallyn/Library/CloudStorage/Box-Box/RES_Data/OISST/oisst_mainstays/regional_timeseries/large_marine_ecosystems/"
+# oisst_all <- list.files(oisst_path, full.names = TRUE)
+# cc_sst <- read.csv(oisst_all[which(grepl("california_current", oisst_all))]) %>%
+#     mutate(., "Year" = format(as.Date(time), "%Y")) %>%
+#     group_by(., Year) %>%
+#     summarize_at(., "area_wtd_anom", mean) %>%
+#     mutate(.,
+#         "Year_Plot" = as.numeric(Year),
+#         "Region" = rep("CCS")
+#     )
+# ne_sst <- read.csv(oisst_all[which(grepl("northeast_us_continental_shelf", oisst_all))]) %>%
+#     mutate(., "Year" = format(as.Date(time), "%Y")) %>%
+#     group_by(., Year) %>%
+#     summarize_at(., "area_wtd_anom", mean) %>%
+#     mutate(.,
+#         "Year_Plot" = as.numeric(Year),
+#         "Region" = rep("NES")
+#     )
 
-sst_anom <- bind_rows(cc_sst, ne_sst) %>%
-    mutate(., "Region" = factor(Region, levels = c("CCS", "NES"), labels = c("California Current", "Northeast US Continental Shelf"))) %>%
-    filter(., Year_Plot >= 1985 & Year_Plot <= 2020)
-sst_anom$DataSubset <- ifelse(sst_anom$Year_Plot <= 2004, "1", "0")
+# sst_anom <- bind_rows(cc_sst, ne_sst) %>%
+#     mutate(., "Region" = factor(Region, levels = c("CCS", "NES"), labels = c("California Current", "Northeast US Continental Shelf"))) %>%
+#     filter(., Year_Plot >= 1985 & Year_Plot <= 2020)
+# sst_anom$DataSubset <- ifelse(sst_anom$Year_Plot <= 2004, "1", "0")
 
-breaks_use <- c(1985, 1995, 2005, 2015)
-limits_use <- c(1985, 2020)
+# breaks_use <- c(1985, 1995, 2005, 2015)
+# limits_use <- c(1985, 2020)
 
-## Monthly instead?
-cc_sst <- read.csv(oisst_all[which(grepl("california_current", oisst_all))]) %>%
-        mutate(., "Year" = format(as.Date(time), "%Y")) %>%
-        group_by(., Year) %>%
-        summarize(., "area_wtd_anom_mean" = mean(area_wtd_anom),
-        "area_wtd_anom_sd" = sd(area_wtd_anom)) %>%
-        mutate(.,
-            "Year_Plot" = as.numeric(Year),
-            "Region" = rep("CCS")
-        )
+# ## Monthly instead?
+# cc_sst <- read.csv(oisst_all[which(grepl("california_current", oisst_all))]) %>%
+#         mutate(., "Year" = format(as.Date(time), "%Y")) %>%
+#         group_by(., Year) %>%
+#         summarize(., "area_wtd_anom_mean" = mean(area_wtd_anom),
+#         "area_wtd_anom_sd" = sd(area_wtd_anom)) %>%
+#         mutate(.,
+#             "Year_Plot" = as.numeric(Year),
+#             "Region" = rep("CCS")
+#         )
 
-ne_sst<- read.csv(oisst_all[which(grepl("northeast_us_continental_shelf", oisst_all))]) %>%
-        mutate(., "Year" = format(as.Date(time), "%Y")) %>%
-        group_by(., Year) %>%
-        summarize(., "area_wtd_anom_mean" = mean(area_wtd_anom),
-        "area_wtd_anom_sd" = sd(area_wtd_anom)) %>%
-        mutate(.,
-            "Year_Plot" = as.numeric(Year),
-            "Region" = rep("NES")
-        )
+# ne_sst<- read.csv(oisst_all[which(grepl("northeast_us_continental_shelf", oisst_all))]) %>%
+#         mutate(., "Year" = format(as.Date(time), "%Y")) %>%
+#         group_by(., Year) %>%
+#         summarize(., "area_wtd_anom_mean" = mean(area_wtd_anom),
+#         "area_wtd_anom_sd" = sd(area_wtd_anom)) %>%
+#         mutate(.,
+#             "Year_Plot" = as.numeric(Year),
+#             "Region" = rep("NES")
+#         )
 
-sst_anom_plot_dat <- bind_rows(cc_sst, ne_sst) %>%
-    mutate(., "Year" = as.Date(Year, "%Y")) %>%
-    filter(., Year >= 1985) 
+# sst_anom_plot_dat <- bind_rows(cc_sst, ne_sst) %>%
+#     mutate(., "Year" = as.Date(Year, "%Y")) %>%
+#     filter(., Year >= 1985) 
 
-sst_anom_plot_dat$Region <- factor(sst_anom_plot_dat$Region, levels = c("CCS", "NES"), labels = c("CC", "NES"))
+# sst_anom_plot_dat$Region <- factor(sst_anom_plot_dat$Region, levels = c("CCS", "NES"), labels = c("CC", "NES"))
 
-sst_anom_plot <- ggplot() +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "#d9d9d9", lwd = 1) +
-    geom_errorbar(data = subset(sst_anom_plot_dat, Year_Plot < 2021 & Year_Plot >= 1985), aes(x = Year, ymin = area_wtd_anom_mean - area_wtd_anom_sd, ymax = area_wtd_anom_mean + area_wtd_anom_sd, color = Region), lwd = 1, alpha = 0.5) +
-    geom_line(data = subset(sst_anom_plot_dat, Year_Plot < 2021 & Year_Plot >= 1985), aes(x = Year, y = area_wtd_anom_mean, color = Region), lwd = 1) +
-    geom_point(data = subset(sst_anom_plot_dat, Year_Plot < 2021 & Year_Plot >= 1985), aes(x = Year, y = area_wtd_anom_mean, fill = Region), pch = 21, size = 2) +
-    stat_poly_line(data = subset(sst_anom_plot_dat, Year_Plot < 2021 & Year_Plot >= 2004), aes(x = Year, y = area_wtd_anom_mean, color = Region), lty = "dashed") +
-    stat_poly_eq(data = subset(sst_anom_plot_dat, Year_Plot < 2021 & Year_Plot >= 2004), aes(x = Year, y = area_wtd_anom_mean, group = Region, label = paste(stat(eq.label), stat(rr.label), sep = "*\", \"*"))) +
-    scale_fill_manual(name = "Large marine ecosystem", values = colors_use) +
-    scale_fill_manual(name = "Large marine ecosystem", values = colors_use) +
-    scale_color_manual(name = "Large marine ecosystem", values = colors_use) +
-    ylab("SST Anomaly\n from 1982-2011 baseline") +
-    xlab("Year") +
-    facet_wrap(~Region) +
-    # geom_rect(data = sst_anom_plot_dat, inherit.aes = FALSE, aes(xmin = as.Date("2003-12-15"), xmax = as.Date("2021-02-15"), ymin = -1.55, ymax = 2.6, color = Region), fill = NA) +
-    # geom_segment(data = sst_anom_plot_dat, inherit.aes = FALSE, aes(x = as.Date("2003-12-15"), xend = as.Date("2000-01-01"), y = -1.55, yend = -3.5, color = Region), arrow = arrow(length = unit(0.5, "cm"))) +
-    # coord_cartesian(ylim = c(-1.75, 2.75), clip="off") +
-    theme_bw(base_size = 16) +
-    theme(
-        plot.margin = unit(c(1.2,1.2,1.2,1.2), "lines"),
-        legend.position = "none",
-        strip.background = element_blank(),
-        strip.text = element_text(size = 18)
-    )
+# sst_anom_plot <- ggplot() +
+#     geom_hline(yintercept = 0, linetype = "dashed", color = "#d9d9d9", lwd = 1) +
+#     geom_errorbar(data = subset(sst_anom_plot_dat, Year_Plot < 2021 & Year_Plot >= 1985), aes(x = Year, ymin = area_wtd_anom_mean - area_wtd_anom_sd, ymax = area_wtd_anom_mean + area_wtd_anom_sd, color = Region), lwd = 1, alpha = 0.5) +
+#     geom_line(data = subset(sst_anom_plot_dat, Year_Plot < 2021 & Year_Plot >= 1985), aes(x = Year, y = area_wtd_anom_mean, color = Region), lwd = 1) +
+#     geom_point(data = subset(sst_anom_plot_dat, Year_Plot < 2021 & Year_Plot >= 1985), aes(x = Year, y = area_wtd_anom_mean, fill = Region), pch = 21, size = 2) +
+#     stat_poly_line(data = subset(sst_anom_plot_dat, Year_Plot < 2021 & Year_Plot >= 2004), aes(x = Year, y = area_wtd_anom_mean, color = Region), lty = "dashed") +
+#     stat_poly_eq(data = subset(sst_anom_plot_dat, Year_Plot < 2021 & Year_Plot >= 2004), aes(x = Year, y = area_wtd_anom_mean, group = Region, label = paste(stat(eq.label), stat(rr.label), sep = "*\", \"*"))) +
+#     scale_fill_manual(name = "Large marine ecosystem", values = colors_use) +
+#     scale_fill_manual(name = "Large marine ecosystem", values = colors_use) +
+#     scale_color_manual(name = "Large marine ecosystem", values = colors_use) +
+#     ylab("SST Anomaly\n from 1982-2011 baseline") +
+#     xlab("Year") +
+#     facet_wrap(~Region) +
+#     # geom_rect(data = sst_anom_plot_dat, inherit.aes = FALSE, aes(xmin = as.Date("2003-12-15"), xmax = as.Date("2021-02-15"), ymin = -1.55, ymax = 2.6, color = Region), fill = NA) +
+#     # geom_segment(data = sst_anom_plot_dat, inherit.aes = FALSE, aes(x = as.Date("2003-12-15"), xend = as.Date("2000-01-01"), y = -1.55, yend = -3.5, color = Region), arrow = arrow(length = unit(0.5, "cm"))) +
+#     # coord_cartesian(ylim = c(-1.75, 2.75), clip="off") +
+#     theme_bw(base_size = 16) +
+#     theme(
+#         plot.margin = unit(c(1.2,1.2,1.2,1.2), "lines"),
+#         legend.position = "none",
+#         strip.background = element_blank(),
+#         strip.text = element_text(size = 18)
+#     )
 
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "SST_MonthlyAnomalies", ".jpg"), height = 8, width = 11, dpi = 300, sst_anom_plot)
+# ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "SST_MonthlyAnomalies", ".jpg"), height = 8, width = 11, dpi = 300, sst_anom_plot)
 
 #####
 ## Response curves
 ## !! WARNING THIS TAKES A WHILE TO RUN!!!!
 #####
-sst_rast <- raster::stack(here::here("data/sim_spp/habitat_covs/oisst/sst.grd"))
-depth_rast <- raster::stack(here::here("data/sim_spp/habitat_covs/depth/depth.grd"))
+sst_rast <- raster::stack(here::here("data/habitat_covs/oisst/sst.grd"))
+depth_rast <- raster::stack(here::here("data/habitat_covs/depth/depth.grd"))
 base_years <- data.frame("Region" = region_dat$Region, "Start_Year_Base" = rep(as.Date("1985-01-01"), length(unique(region_dat$Region))), "End_Year_Base" = rep(as.Date("2004-01-01"), length(unique(region_dat$Region))), "Start_Year_Fore" = c(as.Date("2004-01-01"), as.Date("2004-01-01")), "End_Year_Fore" = c(as.Date("2020-01-01"), as.Date("2020-01-01")))
 
 region_dat <- region_dat %>%
     left_join(., base_years)
 
 ## Read in species parameters
-spp_params <- read.csv(here::here("data/sim_spp/SppEnvCurveParams.csv"))
+spp_params <- read.csv(here::here("data/SppEnvCurveParams.csv"))
 spp_params_t_means <- spp_params %>%
     dplyr::select(., Region, Scenario, Mean) %>%
     pivot_wider(., names_from = Scenario, values_from = Mean)
@@ -367,7 +286,7 @@ depth_out <- ggplot() +
             strip.text = element_text(size = 16, face = "bold"),
             plot.caption = element_text(hjust = 0)
         )
-ggsave(paste0(here::here("pipelines/sim_spp/images/depth_curve_res.jpg")), plot = depth_out, height = 8, width = 11)
+ggsave(here::here("results/depth_curve_res.jpg"), plot = depth_out, height = 8, width = 11)
 
 ## Now the SST curves. This is a bit more complicated because we want to add in an error bar that represents the "future" conditions the model is going to be extrapolated, too. For each month, what if we grab the min/max/mean temps.
 # A function to help us subset...
@@ -599,7 +518,7 @@ sst_out_seas_sd_rug <- ggplot() +
     )
 
 sst_out_rug <- sst_out_res_sd_rug / sst_out_seas_sd_rug + plot_layout(guides = "collect")
-ggsave(paste0(here::here("pipelines/sim_spp/images/sst_res_rug.jpg")), plot = sst_out_rug, height = 8, width = 11)
+ggsave(paste0(here::here("results/sst_res_rug.jpg")), plot = sst_out_rug, height = 8, width = 11)
 
 all_sst_dat_res$Species_Archetype <- "Resident-mobile"
 all_sst_dat_seas$Species_Archetype <- "Seasonally-migrating warm water"
@@ -641,7 +560,7 @@ sst_curve_both <- sst_curve_res +
         strip.background = element_rect(colour = NA, fill = NA),
         strip.text = element_text(size = 16, face = "bold")
     )
-ggsave(paste0(here::here("pipelines/sim_spp/images/sst_deriv_res.jpg")), plot = deriv_out, height = 8, width = 11)
+ggsave(paste0(here::here("results/sst_deriv_res.jpg")), plot = deriv_out, height = 8, width = 11)
 
 #####
 ## Habitat suitability
@@ -661,7 +580,7 @@ res_ind<- 1
 for(g in seq_along(scenarios)){
     scenario_use <- scenarios[g]
     # hab_suit_files <- list.files(paste0("/Users/aallyn/Library/CloudStorage/Box-Box/Mills Lab/Projects/NASA_UNSDG19/Temp Results/vs_hab_suit_lme_", scenario_use, "/"), full.names = TRUE, pattern = "vs_suit")
-    hab_suit_files<- list.files(paste0(here::here("data/sim_spp/vs_hab_suit_lme"), "_", scenario_use, "/"), full.names = TRUE, pattern = "vs_suit")
+    hab_suit_files<- list.files(paste0(here::here("data/vs_hab_suit_lme"), "_", scenario_use, "/"), full.names = TRUE, pattern = "vs_suit")
    
     
     for(i in seq_along(hab_suit_files)){
@@ -705,7 +624,7 @@ for(g in seq_along(scenarios)){
             )
         
         plot_suit_out[[which(names(plot_suit_out) == paste(region_use, scenario_use, sep = "_"))]] <- plot_suit_temp
-        ggsave(filename = paste0("/Users/aallyn/Library/CloudStorage/Box-Box/Mills Lab/Projects/NASA_UNSDG19/Temp Results/", region_use, "_hab_suit_", scenario_use, ".jpg"), height = 8, width = 11, dpi = 300, plot_suit_temp)
+        ggsave(filename = here::here(paste0("results/", region_use, "_hab_suit_", scenario_use, ".jpg")), height = 8, width = 11, dpi = 300, plot_suit_temp)
     }
 }
 
@@ -1006,300 +925,9 @@ ggsave(filename = here::here("pipelines/sim_spp/results/COG_Lon.jpg"), height = 
 #####
 ## Results -- getting prediction skill stats and environmental novelty measures
 #####
-# Need region_dat
-scenarios <- c("res", "seas")
+# Read in results from 06_Pred_BRTs_Get_Env_Novelty.R
+fore_summs_list <- readRDS(here::here("results/fore_summs_list.rds"))
 
-fore_summs_list <- vector("list", length(scenarios))
-fits_path <- here::here("data/sim_spp/")
-test_path <- here::here("data/sim_spp/")
-regions_vec <- c("cc", "ne") # Also update 595
-
-rm(fore_summs_out)
-
-# Introducing some error to OISST measurements
-sst_sds <- read.csv(here::here("data/sim_spp/future_sst_sds.csv")) %>%
-    mutate(.,
-        "Date" = as.Date(paste(Year, Month, "16", sep = "-")),
-        "MaxDate" = max(Date),
-        "ForecastHorizonLength" = abs(lubridate::interval(ymd(MaxDate), ymd(Date)) %/% months(1))
-    ) %>%
-    dplyr::select(., ForecastHorizonLength, Mean_SD)
-
-sst_sds$Mean_SD<- sst_sds$Mean_SD
-
-# Add error
-add_sst_error = FALSE
-plot_suff<- ifelse(add_sst_error, "SSTErr", "")
-n_sims<- 1
-add_sst_error_func<- function(oisst_daily, sd){
-   new_sst <- oisst_daily + rnorm(1, mean = 0, sd = sd)
-   new_sst[new_sst <= -1]<- -1
-   return(new_sst)
-}
-
-tally_obs <- function(true_hsi, min, max) {
-    true_hsi_temp <- true_hsi[!is.na(true_hsi)]
-    obs_tally <- length(true_hsi_temp[true_hsi_temp < max & true_hsi_temp >= min]) / length(true_hsi_temp)
-    return(round(obs_tally, 2))
-}
-
-diff_obs <- function(true_hsi, base_tally) {
-    true_hsi_temp <- true_hsi[!is.na(true_hsi)]
-    obs_tally <- length(true_hsi_temp[true_hsi_temp <= 0.7 & true_hsi_temp >= 0.3]) / length(true_hsi_temp)
-    diff_tally <- obs_tally - unique(base_tally)
-    return(round(diff_tally, 2))
-}
-
-for(g in seq_along(scenarios)){
-    scenario_use <- scenarios[g]
-    season_month_df <- data.frame("Month" = c("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"), "Season" = c("Winter", "Winter", "Spring", "Spring", "Spring", "Summer", "Summer", "Summer", "Fall", "Fall", "Fall", "Winter"))
-    
-    fits_root <- paste0(fits_path, "/brt_fits_lme_", scenario_use)
-    test_root <- paste0(test_path, "train_test_lme_", scenario_use)
-    hab_suit_root <- paste0(here::here("data/sim_spp/vs_hab_suit_lme"), "_", scenario_use)
-    
-    for(i in seq_along(regions_vec)){
-
-        res_ind <- 1
-        
-        region_use <- regions_vec[i]
-        shapefile_use <- region_dat$Shapefile[[which(region_dat$Region == region_use)]]
-        
-        fits_temp <- list.files(paste(fits_root, region_use, sep = "/"), pattern = ".rds")
-        fits_temp <- fits_temp[which(grepl("Base", fits_temp))]
-
-        hab_suit <- readRDS(paste(hab_suit_root, paste0(region_use, "_vs_suit.rds"), sep = "/"))
-        suit_rasts <- raster::stack(sapply(hab_suit[1:length(hab_suit) - 1], "[[", 3))
-        suit_rasts<- suit_rasts[[which(names(suit_rasts) == "X1985.01.01"):which(names(suit_rasts) == "X2019.12.01")]]
-        
-        if(region_use == "cc"){
-            suit_df <- as.data.frame(suit_rasts, xy = TRUE) %>%
-                pivot_longer(., -c(x, y), names_to = "raster.layer", values_to = "HSI") %>%
-                mutate(., "raster.layer" = gsub("X", "", raster.layer)) %>%
-                separate(., col = raster.layer, into = c("Year", "Month", "Day"), sep = "[.]") %>%
-                mutate(., "Date" = as.Date(paste(Year, Month, Day, sep = "-"))) %>%
-                arrange(., Date) %>%
-                mutate(., "Region" = region_use) %>%
-                dplyr::select(., x, y, Date, Region, HSI) %>%
-                mutate("Region" = plyr::revalue(Region, c("cc" = "CCS")))
-
-            train_hsi_prop <- suit_df %>%
-                drop_na(HSI) %>%
-                filter(., Date >= "1985-01-01" & Date < "2004-01-01") %>%
-                mutate(.,
-                    "Month" = format(Date, "%m")
-                ) %>%
-                group_by(., Month, Region) %>%
-                summarize(., "Probs05Tally_Base" = length(HSI[HSI >= 0.4 & HSI <= 0.6]) / length(HSI))
-                
-        }
-
-        if(region_use == "ne"){
-            suit_df <- as.data.frame(suit_rasts, xy = TRUE) %>%
-                pivot_longer(., -c(x, y), names_to = "raster.layer", values_to = "HSI") %>%
-                mutate(., "raster.layer" = gsub("X", "", raster.layer)) %>%
-                separate(., col = raster.layer, into = c("Year", "Month", "Day"), sep = "[.]") %>%
-                mutate(., "Date" = as.Date(paste(Year, Month, Day, sep = "-"))) %>%
-                arrange(., Date) %>%
-                mutate(., "Region" = region_use) %>%
-                dplyr::select(., x, y, Date, Region, HSI) %>%
-                mutate("Region" = plyr::revalue(Region, c("ne" = "NES")))
-            
-            train_hsi_prop <- suit_df %>%
-                drop_na(HSI) %>%
-                filter(., Date >= "1985-01-01" & Date < "2004-01-01") %>%
-                mutate(.,
-                    "Month" = format(Date, "%m")
-                ) %>%
-                group_by(., Month, Region) %>%
-                summarize(., "Probs05Tally_Base" = length(HSI[HSI >= 0.4 & HSI <= 0.6]) / length(HSI))
-        }
-      
-
-        for(j in seq_along(fits_temp)){
-            
-            # Scenario label
-            scen_use <- gsub("_fit.rds", "", fits_temp[j])
-            mod_fit <- readRDS(paste0(paste(fits_root, region_use, sep = "/"), "/", scen_use, "_fit.rds"))
-            
-            while (is.null(mod_fit)) {
-                # Refit the model??
-                mod_fit <- fit_brt(train_data = data.frame(readRDS(paste0(paste(test_root, region_use, sep = "/"), "/", scen_use, ".rds"))[["Training"]]), predictors_vec = c("depth", "oisst_daily"), response = "Real", family = "bernoulli", tree_complexity = 3, learning_rate = 0.01, bag_fraction = 0.6)
-                saveRDS(mod_fit, paste0(paste(test_root, region_use, sep = "/"), "/", scen_use, "_fit.rds"))
-                print("Model updated")
-            }
-            
-            # Get the predictions together
-            pred_dat_temp <- data.frame(readRDS(paste0(paste(test_root, region_use, sep = "/"), "/", scen_use, ".rds"))[["Testing"]]) %>%
-                filter(., format(Date, "%Y") < 2020) %>%
-                mutate(.,
-                    "Region" = region_use,
-                    "Scenario" = str_extract(scen_use, "[^_]+"),
-                    "ModelTrainStart" = as.Date(str_extract(scen_use, "\\d{4}-\\d{2}-\\d{2}")),
-                    "ModelTrainEnd" = as.Date(str_extract(sapply(strsplit(scen_use, "to"), "[", 2), "\\d{4}-\\d{2}-\\d{2}")),
-                    "ForecastHorizonLength" = lubridate::interval(ymd(ModelTrainEnd), ymd(Date)) %/% months(1),
-                    "DataExtent" = time_length(lubridate::interval(as.Date(ModelTrainStart), ModelTrainEnd), "year"))
-            # Make predictions
-            if(add_sst_error == TRUE){
-                pred_dat_temp <- pred_dat_temp %>%
-                    left_join(., sst_sds)
-                pred_boot_res <- data.frame(matrix(nrow = nrow(pred_dat_temp), ncol = n_sims))
-                
-                for(l in 1:n_sims){
-                    new_pred_data <- pred_dat_temp %>%
-                        mutate(.,
-                            "oisst_daily" = map2_dbl(oisst_daily, Mean_SD, add_sst_error_func)
-                        )
-                    pred_boot_res[, l] <- predict(mod_fit, newdata = new_pred_data, type = "response", n.trees = mod_fit$gbm.call$best.trees)
-                }
-                pred_dat_temp$Pred <- rowMeans(pred_boot_res, na.rm = TRUE)
-            } else {
-                pred_dat_temp <- pred_dat_temp %>%
-                    mutate(., "Pred" = predict(mod_fit, newdata = (.), type = "response", n.trees = mod_fit$gbm.call$best.trees))
-            }
-
-            pred_dat_temp$Month <- format(pred_dat_temp$Date, "%m")
-            pred_dat_temp <- pred_dat_temp %>%
-                left_join(., season_month_df, by = c("Month" = "Month")) %>%
-                rename(., c("ForecastHorizonSeason" = "Season")) %>%
-                mutate(., "Year" = format(Date, "%Y"))
-
-            # Add in BRT fitted curve...
-            brt_sst_fit <- data.frame(
-                "Region" = region_use,
-                "Scenario" = str_extract(scen_use, "[^_]+"),
-                "ModelTrainStart" = as.Date(str_extract(scen_use, "\\d{4}-\\d{2}-\\d{2}")),
-                "ModelTrainEnd" = as.Date(str_extract(sapply(strsplit(scen_use, "to"), "[", 2), "\\d{4}-\\d{2}-\\d{2}")), 
-                "BRT_SST_Fit" = plot.gbm.aja(mod_fit, i.var = "oisst_daily", i.use = pred_dat_temp$oisst_daily, n.sims = 1, return.grid = TRUE, continuous.resolution = 500, type = "response")
-            ) %>%
-                group_by(., Region, Scenario, ModelTrainStart, ModelTrainEnd) %>%
-                    nest(.key = "BRT_SST_Fit")
-                 
-            # Training data...
-            fit_sst_summs <- data.frame(readRDS(paste0(paste(test_root, region_use, sep = "/"), "/", scen_use, ".rds"))[["Training"]])
-            
-            # Monthly extrapolation...
-            extrap_res <- fit_sst_summs %>%
-                mutate(.,
-                    "Region" = region_use,
-                    "Month" = format(Date, "%m"), 
-                    "Scenario" = str_extract(scen_use, "[^_]+")
-                ) %>%
-                group_by(., Scenario, Region) %>%
-                nest() 
-
-            # Prediction data...
-            pred_dat_extrap <- pred_dat_temp %>%
-                group_by(., Region, Scenario, Year, Month) %>%
-                nest(.key = "fore_dat")
-            extrap_res <- extrap_res %>%
-                left_join(., pred_dat_extrap, by = c("Region" = "Region", "Scenario" = "Scenario")) %>%
-                dplyr::select(., -data, -fore_dat)
-           
-            # Add in average training data SST
-            fit_sst_summs <- fit_sst_summs %>%
-                mutate(.,
-                    "Region" = region_use,
-                    "Month" = format(Date, "%m"),
-                    "Year" = format(Date, "%Y"),
-                    "Scenario" = str_extract(scen_use, "[^_]+")
-                ) %>%
-                group_by(., Scenario, Region) %>%
-                summarize_at(., vars("oisst_daily"), c("FitSSTMean" = mean, "FitSSTSD" = sd))
-            
-            fit_sst_summs <- fit_sst_summs %>%
-                left_join(., extrap_res) 
-                
-            pred_dat_temp <- pred_dat_temp %>%
-                left_join(., fit_sst_summs, by = c("Scenario" = "Scenario", "Region" = "Region", "Year" = "Year", "Month" = "Month")) %>%
-                left_join(brt_sst_fit)
-                
-            if (res_ind == 1) {
-                all_out <- pred_dat_temp
-            } else {
-                all_out <- bind_rows(all_out, pred_dat_temp)
-            }
-            
-            res_ind<- res_ind + 1
-        }
-        
-        print(paste(regions_vec[i], " is done", sep = ""))
-        
-        #####
-        ## Visualizing results
-        #####
-        all_out$DataExtent <- all_out$DataExtent + 1
-        
-        all_out_both <- all_out
-        
-        all_out_both <- all_out_both %>%
-            mutate(., "Region" = plyr::revalue(Region, c("cc" = "CCS", "ne" = "NES")))
-        
-        # extrap_data <- all_out_both %>%
-        #     as_tibble() %>%
-        #     dplyr::select(., Region, Scenario, Month, Year, ModelTrainStart, ModelTrainEnd, Extrap_Out, Extrap_Map, Extrap) %>%
-        #     distinct(., Region, Scenario, Month, ModelTrainStart, ModelTrainEnd, Extrap, .keep_all = TRUE)
-
-        # all_out_both <- all_out_both %>%
-        #     dplyr::select(., -c(Extrap_Out, Extrap_Map))
-
-        # Bring in Suitability and nest
-        fore_summs <- all_out_both %>%
-            left_join(., suit_df) %>%
-            left_join(., train_hsi_prop) %>%
-            group_by(., Region, Scenario, Month, Year, ModelTrainStart, ModelTrainEnd, FitSSTMean, FitSSTSD, BRT_SST_Fit) %>%
-            nest() %>%
-            arrange(., Region, Scenario, Year, Month, ModelTrainStart, ModelTrainEnd, FitSSTMean, FitSSTSD)
-        
-        # Calculate a sweet of statistics
-        fore_summs$PredSSTMean <- as.numeric(lapply(fore_summs$data, FUN = function(x) mean(x$oisst_daily, na.rm = TRUE)))
-        fore_summs$PredSSTSD <- as.numeric(lapply(fore_summs$data, FUN = function(x) sd(x$oisst_daily, na.rm = TRUE)))
-        fore_summs$AvgProbs <- as.numeric(lapply(fore_summs$data, FUN = function(x) tally_obs(x$HSI, min = 0.4, max = 0.6)))
-        fore_summs$HighProbs<- as.numeric(lapply(fore_summs$data, FUN = function(x) tally_obs(x$HSI, min = 0.7, max = 1)))
-        fore_summs$LowProbs<- as.numeric(lapply(fore_summs$data, FUN = function(x) tally_obs(x$HSI, min = 0, max = 0.3)))
-        fore_summs$Probs05Diff <- as.numeric(lapply(fore_summs$data, FUN = function(x) diff_obs(x$HSI, x$Probs05Tally_Base)))
-        fore_summs$OptimThresh<- as.numeric(lapply(fore_summs$data, FUN = function(x, method = "max.sensitivity+specificity") optim_thresh_func(x, method = "max.sensitivity+specificity")))
-        fore_summs$MAE_PA <- round(as.numeric(lapply(fore_summs$data, FUN = function(x) MAE(x$Pred, x$Real))), 2)
-        fore_summs$MAE_HSI <- round(as.numeric(lapply(fore_summs$data, FUN = function(x) MAE(x$Pred, x$HSI))), 2)
-        fore_summs$AUC <- round(as.numeric(lapply(fore_summs$data, FUN = function(x) AUC(x$Pred, x$Real))), 2)
-        fore_summs$Calib <- round(as.numeric(lapply(fore_summs$data, FUN = function(x) calib_function(x))), 2)
-        # fore_summs$Precis <- as.numeric(lapply(fore_summs$data, FUN = function(x) prec_func(x)))
-        fore_summs$Cor <- round(as.numeric(lapply(fore_summs$data, FUN = function(x) cor(x$Pred, x$Real))), 2)
-
-        fore_summs <- fore_summs %>%
-            mutate(., "Conf_Mat" = map2(data, list(0.5), conf_mat_func))
-        fore_summs$Sens <- round(as.numeric(lapply(fore_summs$Conf_Mat, FUN = function(x) sens_func(x))), 2)
-        fore_summs$Spec <- round(as.numeric(lapply(fore_summs$Conf_Mat, FUN = function(x) spec_func(x))), 2)
-        fore_summs$PrAUC <- round(as.numeric(lapply(fore_summs$data, FUN = function(x) pr_auc_func(x))), 2)
-        fore_summs$COG_Lat_Pred <- as.numeric(lapply(fore_summs$data, FUN = function(x) cog_lat_pred_function(x)))
-        fore_summs$COG_Lon_Pred <- as.numeric(lapply(fore_summs$data, FUN = function(x) cog_lon_pred_function(x)))
-        fore_summs$COG_Lat_True <- as.numeric(lapply(fore_summs$data, FUN = function(x) cog_lat_true_function(x)))
-        fore_summs$COG_Lon_True <- as.numeric(lapply(fore_summs$data, FUN = function(x) cog_lon_true_function(x)))
-        fore_summs$TSS <- fore_summs$Sens + fore_summs$Spec - 1
-        fore_summs$RMSE <- as.numeric(lapply(fore_summs$data, FUN = function(x) rmse_func(x)))
-        fore_summs$RawDiff <- round(as.numeric(lapply(fore_summs$data, FUN = function(x) raw_diff_func(x))), 2)
-        fore_summs$F1 <- as.numeric(lapply(fore_summs$data, FUN = function(x) f1_func(x)))
-        fore_summs$Prev <- as.numeric(lapply(fore_summs$data, FUN = function(x) round(sum(x$Real) / length(x$Real), 2)))
-        
-        hell_dist <- vector("numeric", length = nrow(fore_summs))
-        for (k in seq_along(hell_dist)) {
-            hell_dist[k] <- HellingerDist(Norm(mean = fore_summs$FitSSTMean[k], sd = fore_summs$FitSSTSD[k]), Norm(mean = fore_summs$PredSSTMean[k], sd = fore_summs$PredSSTSD[k]))
-        }
-        fore_summs$HellDist<- hell_dist
-
-        if(i == 1){
-            fore_summs_out<- fore_summs
-        } else {
-            fore_summs_out<- bind_rows(fore_summs_out, fore_summs)
-        }
-    }
-    fore_summs_list[[g]]<- fore_summs_out
-}
-
-
-#####
-## Results plots
-#####
 # Unlist into one big dataframe and species archetype column
 names(fore_summs_list)<- scenarios
 # Get to a nested dataframe...
