@@ -20,26 +20,3 @@ Depending on computing abilities, it will take a while to run through all of the
 
 # Questions or suggestions?
 Please feel free to reach out to [Andrew Allyn](mailto:aallyn@gmri.org) with any questions or suggestions!
-
-  
-  # sim_spp_fit_brt:
-  #   foreach: ${sim_spp_fit_brt}
-
-  #   do: 
-  #     cmd: |
-  #       R CMD pipelines/sim_spp/R/fit_brt.R ./data/sim_spp/train_test_eez/cc/${item.dataset} ${item.predictors_vec} ${item.response} ${item.family} ${item.tree_complexity} ${item.learning_rate} ${item.bag_fraction} ./data/sim_spp/brt_fits_eez/cc/${item.model_name}.rds 
-  #     deps:
-  #       - ./data/sim_spp/train_test_eez/cc/${item.dataset}
-  #     outs:
-  #       - ./data/sim_spp/brt_fits_eez/cc/${item.model_name}.rds  
-
-  sim_spp_fit_brt:
-    foreach: ${sim_spp_fit_brt}
-
-    do: 
-      cmd: |
-        R CMD pipelines/sim_spp/R/fit_brt.R ./data/sim_spp/train_test_lme_res/cc/${item.dataset} ${item.predictors_vec} ${item.response} ${item.family} ${item.tree_complexity} ${item.learning_rate} ${item.bag_fraction} ./data/sim_spp/brt_fits_lme_res/cc/${item.model_name}.rds 
-      deps:
-        - ./data/sim_spp/train_test_lme_res/cc/${item.dataset}
-      outs:
-        - ./data/sim_spp/brt_fits_lme_res/cc/${item.model_name}.rds 

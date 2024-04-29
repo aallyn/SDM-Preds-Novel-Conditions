@@ -5,6 +5,8 @@ library(tidyverse)
 library(sf)
 library(raster)
 library(zoo)
+
+
 library(lubridate)
 library(gbm)
 library(forecast)
@@ -399,12 +401,7 @@ future_sst_dat_rug <- do.call(rbind.data.frame, region_dat$Fore_SST_YMon_Mean)
 colnames(future_sst_dat_rug)[2] <- "MeanSST"
 future_sst_dat_rug$Month <- format(future_sst_dat_rug$Year_Mon, "%m")
 
-# future_sst_dat_rug_sd <- do.call(rbind.data.frame, region_dat$Fore_SST_YMon_SD)
-# colnames(future_sst_dat_rug_sd)[2] <- "SDSST"
-# future_sst_dat_rug_sd$Month <- format(future_sst_dat_rug_sd$Year_Mon, "%m")
-
 future_sst_dat_rug <- future_sst_dat_rug %>%
-    # left_join(., future_sst_dat_rug_sd) %>%
     left_join(., season_month_df)
 future_sst_dat_rug$Season <- factor(future_sst_dat_rug$Season, levels = c("Winter", "Spring", "Summer", "Fall"))
 y_vals_match <- data.frame("Season" = c("Winter", "Spring", "Summer", "Fall"), "Y_val" = c(0.2, 0.14, 0.08, 0.02))
@@ -419,11 +416,11 @@ future_sst_dat_rug$Region<- factor(future_sst_dat_rug$Region, levels = c("Califo
 sst_out_res_sd_rug <- ggplot() +
     geom_rect(data = all_sst_dat_res, aes(xmin = Mean - SD, xmax = Mean + SD, ymin = 0.01, ymax = 0.21), fill = "gray80") +
     geom_point(data = future_sst_dat_rug, aes(x = MeanSST, y = Y_val, color = Season), alpha = 0.5, inherit.aes = FALSE) +
-    geom_path(data = , aes(x = MeanVar, y = Prediction), lwd = 2, color = "gray20") +
+    geom_path(data = all_sst_dat_res, aes(x = MeanVar, y = Prediction), lwd = 2, color = "gray20") +
     # geom_ribbon(data = all_sst_dat, aes(x = MeanVar, ymax = Prediction, ymin = 0), lwd = 2, color = "gray20", alpha = 0.5, fill = NA) +
     scale_color_manual(name = "Season", values = colors_use) +
     xlab("SST (deg C)") +
-    geom_label(data = , aes(x = 2.5, y = 0.95, label = paste0("Mean = ", round(Res_Mean, 2), "\nSD = ", round(Res_SD, 2))), label.size = NA) +
+    geom_label(data = all_sst_dat_res, aes(x = 2.5, y = 0.95, label = paste0("Mean = ", round(Res_Mean, 2), "\nSD = ", round(Res_SD, 2))), label.size = NA) +
     ylab("Habitat suitability") +
     ylim(c(0, 1)) +
     xlim(c(-1, 30)) +
@@ -519,48 +516,6 @@ sst_out_seas_sd_rug <- ggplot() +
 
 sst_out_rug <- sst_out_res_sd_rug / sst_out_seas_sd_rug + plot_layout(guides = "collect")
 ggsave(paste0(here::here("results/sst_res_rug.jpg")), plot = sst_out_rug, height = 8, width = 11)
-
-all_sst_dat_res$Species_Archetype <- "Resident-mobile"
-all_sst_dat_seas$Species_Archetype <- "Seasonally-migrating warm water"
-
-sst_curve_dat <-  all_sst_dat_res %>%
-    bind_rows(., all_sst_dat_seas)
-    
-sst_curve_dat_res <- sst_curve_dat %>%
-    filter(., Species_Archetype == "Resident-mobile")
-
-sst_curve_res <- ggplot() +
-    geom_path(data = sst_curve_dat_res, aes(x = MeanVar, y = Prediction), lwd = 2, color = "gray20") +
-    xlab("SST (deg C)") +
-    geom_label(data = sst_curve_dat_res, aes(x = 2.5, y = 0.95, label = paste0("Mean = ", round(Res_Mean, 2), "\nSD = ", round(Res_SD, 2)))) +
-    ylab("Prediction") +
-    ylim(c(0, 1)) +
-    xlim(c(-1, 30)) +
-    theme_bw(base_size = 14) +
-    facet_wrap(~Region) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-
-sst_curve_dat_seas <- sst_curve_dat %>%
-    filter(., Species_Archetype == "Seasonally-migrating warm water")
-sst_curve_dat_seas$Region<- factor(sst_curve_dat_seas$Region, levels = c("California_Current", "Northeast_US_Shelf"), labels = c("CC", "NES"))
-
-sst_curve_both <- sst_curve_res +
-    geom_path(data = sst_curve_dat_seas, aes(x = MeanVar, y = Prediction), lty = "dashed", lwd = 2, color = "gray20") +
-    xlab("SST (deg C)") +
-    geom_label(data = sst_curve_dat_seas, aes(x = 27, y = 0.95, label = paste0("Mean = ", round(SeasWarm_Mean, 2), "\nSD = ", round(SeasWarm_SD, 2)))) +
-    ylab("Prediction") +
-    ylim(c(0, 1)) +
-    xlim(c(-1, 30)) +
-    theme_bw(base_size = 14) +
-    facet_wrap(~Region) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(paste0(here::here("results/sst_deriv_res.jpg")), plot = deriv_out, height = 8, width = 11)
 
 #####
 ## Habitat suitability
@@ -729,76 +684,7 @@ plot_layout(guides = "collect", nrow = 1) +
     plot_annotation(title = "Seasonal migrant warm water species archetype", theme = theme(plot.title = element_text(size = 16)))
 
 plot_out<- wrap_elements(res_row) / wrap_elements(seas_row) + plot_layout(guides = "collect")
-ggsave(filename = here::here("pipelines/sim_spp/results/ExampleSurfaces.jpg"), height = 8, width = 15, dpi = 300, plot_out)
-
-# ## Forecast years difference from baseline. This plot shows the difference for the forecast years by month from the baseline training conditions by month (monthly anomaly). Might want to lose month?
-# scenarios <- c("res", "seas")
-
-# plot_suit_out <- vector("list", length = length(unique(region_dat$Region)) * length(scenarios))
-# names(plot_suit_out) <- paste(unique(region_dat$Region), rep(scenarios, each = length(unique(region_dat$Region))), sep = "_")
-
-# suit_df_out <- vector("list", length = length(unique(region_dat$Region)) * length(scenarios))
-# names(suit_df_out) <- paste(unique(region_dat$Region), rep(scenarios, each = length(unique(region_dat$Region))), sep = "_")
-
-# for(g in seq_along(scenarios)){
-#     scenario_use <- scenarios[g]
-#     # hab_suit_files <- list.files(paste0("/Users/aallyn/Library/CloudStorage/Box-Box/Mills Lab/Projects/NASA_UNSDG19/Temp Results/vs_hab_suit_lme_", scenario_use, "/"), full.names = TRUE, pattern = "vs_suit")
-#     hab_suit_files<- list.files(paste0(here::here("data/sim_spp/vs_hab_suit_lme"), "_", scenario_use, "/"), full.names = TRUE, pattern = "vs_suit")
-   
-    
-#     for(i in seq_along(hab_suit_files)){
-#         hab_suit_temp <- readRDS(hab_suit_files[i])
-#         suit_rasts <- raster::stack(sapply(hab_suit_temp[1:length(hab_suit_temp) - 1], "[[", 3))
-        
-#         suit_df <- as.data.frame(suit_rasts, xy = TRUE) %>%
-#             pivot_longer(., -c(x, y), names_to = "raster.layer", values_to = "value") %>%
-#             mutate(., "raster.layer" = gsub("X", "", raster.layer)) %>%
-#             separate(., col = raster.layer, into = c("Year", "Month", "Day"), sep = "[.]") %>%
-#             mutate(., "Date" = as.Date(paste(Year, Month, Day, sep = "-"))) %>%
-#             arrange(., Date)
-        
-#         # Get region
-#         region_use <- gsub("_vs_suit.rds", "", stringr::str_remove(hab_suit_files[i], ".*\\/"))
-        
-#         # Subset dates
-#         suit_df_fore <- suit_df %>%
-#             filter(., Date >= region_dat$Start_Year_Fore[[which(region_dat$Region == region_use)]] & Date < region_dat$End_Year_Fore[[which(region_dat$Region == region_use)]]) %>%
-#             group_by(., x, y, Month) %>%
-#             summarize_at(., "value", list(Fore = mean), na.rm = TRUE)
-
-#         suit_df_base <- suit_df %>%
-#             filter(., Date >= region_dat$Start_Year_Base[[which(region_dat$Region == region_use)]] & Date < region_dat$End_Year_Base[[which(region_dat$Region == region_use)]]) %>%
-#             group_by(., x, y, Month) %>%
-#             summarize_at(., "value", list(Base = mean), na.rm = TRUE)
-        
-#         suit_df <- suit_df_base %>%
-#             left_join(suit_df_fore) %>%
-#             mutate(., "Difference" = Fore - Base)
-        
-#         suit_df_out[[i]] <- suit_df
-        
-#         # Get bbox
-#         bbox <- st_bbox(region_dat$Shapefile[[which(region_dat$Region == region_use)]])
-        
-#         plot_suit_temp <- ggplot() +
-#             geom_raster(data = suit_df, aes(x = x, y = y, fill = Difference), na.rm = TRUE) +
-#             scale_fill_gradient2(name = "Habitat suitability difference", na.value = "transparent", low = "#2166ac", high = "#b2182b") +
-#             geom_sf(data = land, color = "#d9d9d9") +
-#             coord_sf(xlim = bbox[c(1, 3)], ylim = bbox[c(2, 4)]) +
-#             xlab("Longitude") +
-#             ylab("Latitude") +
-#             theme_bw() +
-#             facet_wrap(~Month) +
-#             theme(
-#                 strip.background = element_rect(colour = NA, fill = NA),
-#                 strip.text = element_text(size = 16, face = "bold")
-#             )
-        
-#         plot_suit_out[[which(names(plot_suit_out) == paste(region_use, scenario_use, sep = "_"))]] <- plot_suit_temp
-#         ggsave(filename = paste0("/Users/aallyn/Library/CloudStorage/Box-Box/Mills Lab/Projects/NASA_UNSDG19/Temp Results/", region_use, "_hab_suit_diff_", scenario_use, ".jpg"), height = 8, width = 11, dpi = 300, plot_suit_temp)
-#     }
-# }
-
+ggsave(filename = here::here("results/ExampleSurfaces.jpg"), height = 8, width = 15, dpi = 300, plot_out)
 
 # #####
 # ## "TRUE" center of gravity
@@ -813,7 +699,7 @@ res_ind <- 1
 for(g in seq_along(scenarios)){
     scenario_use <- scenarios[g]
     # hab_suit_files <- list.files(paste0("/Users/aallyn/Library/CloudStorage/Box-Box/Mills Lab/Projects/NASA_UNSDG19/Temp Results/vs_hab_suit_lme_", scenario_use, "/"), full.names = TRUE, pattern = "vs_suit")
-    hab_suit_files<- list.files(paste0(here::here("data/sim_spp/vs_hab_suit_lme"), "_", scenario_use, "/"), full.names = TRUE, pattern = "vs_suit")
+    hab_suit_files<- list.files(paste0(here::here("data/vs_hab_suit_lme"), "_", scenario_use, "/"), full.names = TRUE, pattern = "vs_suit")
    
     
     for(i in seq_along(hab_suit_files)){
@@ -901,7 +787,7 @@ seas_lat_out<- ggplot() +
     ) 
 
 lat_out <- res_lat_out / seas_lat_out + plot_layout(guides = "collect")
-ggsave(filename = here::here("pipelines/sim_spp/results/COG_Lat.jpg"), height = 8, width = 11, dpi = 300, lat_out)
+ggsave(filename = here::here("results/COG_Lat.jpg"), height = 8, width = 11, dpi = 300, lat_out)
 
 out_wide$Long_Min<- ifelse(out_wide$Region == "CCS", -118, -67)
 out_wide$Long_Max<- ifelse(out_wide$Region == "CCS", -128, -73)
@@ -919,8 +805,8 @@ lon_out<- ggplot() +
         strip.text = element_text(size = 16, face = "bold")
     )
 
-ggsave(filename = here::here("pipelines/sim_spp/results/COG_Lat.jpg"), height = 8, width = 11, dpi = 300, lat_out)
-ggsave(filename = here::here("pipelines/sim_spp/results/COG_Lon.jpg"), height = 8, width = 11, dpi = 300, lon_out)
+ggsave(filename = here::here("results/COG_Lat.jpg"), height = 8, width = 11, dpi = 300, lat_out)
+ggsave(filename = here::here("results/COG_Lon.jpg"), height = 8, width = 11, dpi = 300, lon_out)
 
 #####
 ## Results -- getting prediction skill stats and environmental novelty measures
@@ -967,36 +853,7 @@ hell_dist_plot<- ggplot() +
     theme(
         strip.background = element_rect(colour = NA, fill = NA)
     )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "HellDist_TS", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, hell_dist_plot)
-
-out<- sst_anom_plot / hell_dist_plot + plot_layout(heights = c(0.6, 1))
-ggsave(filename = paste0("~/Desktop/", "UncertFig3", ".png"), height = 8, width = 11, dpi = 600, out)
-
-
-# sst_dat_temp <- fore_summs %>%
-#     ungroup() %>%
-#     dplyr::select(., Region, Month, Year, FitSSTMean, FitSSTSD, PredSSTMean, PredSSTSD) %>%
-#     mutate(., "Date" = as.Date(paste(Year, Month, "16", sep = "-"), "%Y-%m-%d"))
-# sst_dat_temp2 <- sst_dat_temp %>%
-#     group_by(Region, Year) %>%
-#     summarize(.,
-#         "Mean_SST" = mean(PredSSTMean, na.rm = TRUE),
-#         "SD_SST" = sd(PredSSTMean, na.rm = TRUE)
-#     ) %>%
-#     mutate(.,
-#         "Year" = as.Date(Year, "%Y"),
-#         "Plot_Ymin" = Mean_SST - SD_SST,
-#         "Plot_Ymax" = Mean_SST + SD_SST
-#     )
-
-# ggplot() +
-#     geom_line(data = sst_dat_temp, aes(x = Date, y = FitSSTMean, color = Region), alpha = 0.5, lwd = 4) +
-#     geom_errorbar(data = sst_dat_temp2, aes(x = Year, ymin = Plot_Ymin, ymax = Plot_Ymax, color = Region)) +
-#     scale_fill_manual(name = "Large marine ecosystem", values = colors_use) +
-#     scale_color_manual(name = "Large marine ecosystem", values = colors_use) +
-#     scale_y_continuous(name = "Sea surface temperature") +
-#     facet_wrap(~Region) +
-#     theme_bw(base_size = 16)
+ggsave(filename = paste0(here::here("results/"), "HellDist_TS.jpg"), height = 8, width = 11, dpi = 300, hell_dist_plot)
 
 #####
 ## Deviance explained
@@ -1007,78 +864,81 @@ dev_expl_brt<- function(model){
     (int.null.deviance - int.residual.deviance)/int.null.deviance
 }
 
-cc_res <- readRDS(here::here("data/sim_spp/brt_fits_lme_res/cc/Base_1985-01-01_to_2004-01-01_fit.rds"))
+cc_res <- readRDS(here::here("mods/brt_fits_lme_res/cc/Base_1985-01-01_to_2004-01-01_fit.rds"))
 dev_expl_brt(cc_res)
 
-ne_res<- readRDS(here::here("data/sim_spp/brt_fits_lme_res/ne/Base_1985-01-01_to_2004-01-01_fit.rds"))
+ne_res<- readRDS(here::here("mods/brt_fits_lme_res/ne/Base_1985-01-01_to_2004-01-01_fit.rds"))
 dev_expl_brt(ne_res)
 
-cc_seas <- readRDS(here::here("data/sim_spp/brt_fits_lme_seas/cc/Base_1985-01-01_to_2004-01-01_fit.rds"))
+cc_seas <- readRDS(here::here("mods/brt_fits_lme_seas/cc/Base_1985-01-01_to_2004-01-01_fit.rds"))
 dev_expl_brt(cc_seas)
 
-ne_seas<- readRDS(here::here("data/sim_spp/brt_fits_lme_seas/ne/Base_1985-01-01_to_2004-01-01_fit.rds"))
+ne_seas<- readRDS(here::here("mods/brt_fits_lme_seas/ne/Base_1985-01-01_to_2004-01-01_fit.rds"))
 dev_expl_brt(ne_seas)
-
-#####
-## Parameter importance
-#####
-summary(cc_res)
 
 
 #####
 ## Estimation curves
 #####
 # Would need to get sst_curve_dat_res object
-# sst_curve_dat_res$Region <- factor(sst_curve_dat_res$Region, levels = c("California_Current", "Northeast_US_Shelf"), labels = c("CC", "NES"))
-# sst_curve_dat_seas$Region<- factor(sst_curve_dat_seas$Region, levels = c("California_Current", "Northeast_US_Shelf"), labels = c("CC", "NES"))
-# brt_fits_res <- fore_summs %>%
-#     filter(., Species_Archetype == "res") %>%
-#     ungroup() %>%
-#     distinct(Region, BRT_SST_Fit) %>%
-#     unnest(cols = c(BRT_SST_Fit))
-# names(brt_fits_res)[2:3]<- c("oisst_daily", "y")
-# brt_fits_res$Region <- factor(brt_fits_res$Region, levels = c("CC", "NES"), labels = c("CC", "NES"))
+sst_curve_dat <-  all_sst_dat_res %>%
+    bind_rows(., all_sst_dat_seas)
+sst_curve_dat_res <- sst_curve_dat %>%
+    filter(., Species_Archetype == "Resident-mobile")
+sst_curve_dat_seas <- sst_curve_dat %>%
+    filter(., Species_Archetype == "Seasonally-migrating warm water")
 
-# brt_fits_seas <- fore_summs %>%
-#     filter(., Species_Archetype == "seas") %>%
-#     ungroup() %>%
-#     distinct(Region, BRT_SST_Fit) %>%
-#     unnest(cols = c(BRT_SST_Fit))
-# names(brt_fits_seas)[2:3]<- c("oisst_daily", "y")
-# brt_fits_seas$Region <- factor(brt_fits_seas$Region, levels = c("CC", "NES"), labels = c("CC", "NES"))
 
-# sst_op_est_res<- ggplot() +
-#         geom_path(data = sst_curve_dat_res, aes(x = MeanVar, y = Prediction), lwd = 2.5, color = "gray20", alpha = 0.5) +
-#         geom_path(data = brt_fits_res, aes(x = oisst_daily, y = y), color = "#1b9e77", lwd = 1.5, alpha = 0.5) +
-#         xlab("SST (deg C)") +
-#         ylab("Habitat suitability") +
-#         ylim(c(0, 1)) +
-#         xlim(c(-1, 30)) +
-#         theme_bw(base_size = 18) +
-#         facet_wrap(~ Region, ncol = 2) +
-#         ggtitle("Resident-mobile species archetype") +
-#         theme(
-#             strip.background = element_rect(colour = NA, fill = NA),
-#             strip.text = element_text(size = 16, face = "bold"),
-#             plot.caption = element_text(hjust = 0) 
-#         ) 
-# sst_op_est_seas<- ggplot() +
-#         geom_path(data = sst_curve_dat_seas, aes(x = MeanVar, y = Prediction), lwd = 2.5, color = "gray20", alpha = 0.5) +
-#         geom_path(data = brt_fits_seas, aes(x = oisst_daily, y = y), color = "#1b9e77", lwd = 1.5, alpha = 0.5) +
-#         xlab("SST (deg C)") +
-#         ylab("Habitat suitability") +
-#         ylim(c(0, 1)) +
-#         xlim(c(-1, 30)) +
-#         theme_bw(base_size = 18) +
-#         facet_wrap(~ Region, ncol = 2) +
-#         ggtitle("Seasonally-migrating warm water species archetype") +
-#         theme(
-#             strip.background = element_rect(colour = NA, fill = NA),
-#             strip.text = element_text(size = 16, face = "bold"),
-#             plot.caption = element_text(hjust = 0)
-#         ) 
-# sst_op_est_both<- sst_op_est_res / sst_op_est_seas + plot_layout(guides = "collect")   
-# ggsave(paste0(here::here("pipelines/sim_spp/images/sst_op_est.jpg")), plot = sst_op_est_both, height = 8, width = 11) 
+sst_curve_dat_res$Region <- factor(sst_curve_dat_res$Region, levels = c("CC", "NES"), labels = c("California_Current", "Northeast_US_Shelf"))
+sst_curve_dat_seas$Region<- factor(sst_curve_dat_seas$Region, levels = c("CC", "NES"), labels = c("California_Current", "Northeast_US_Shelf"))
+brt_fits_res <- fore_summs %>%
+    filter(., Species_Archetype == "res") %>%
+    ungroup() %>%
+    distinct(Region, BRT_SST_Fit) %>%
+    unnest(cols = c(BRT_SST_Fit))
+names(brt_fits_res)[2:3]<- c("oisst_daily", "y")
+brt_fits_res$Region <- factor(brt_fits_res$Region, levels = c("CC", "NES"), labels = c("California_Current", "Northeast_US_Shelf"))
+
+brt_fits_seas <- fore_summs %>%
+    filter(., Species_Archetype == "seas") %>%
+    ungroup() %>%
+    distinct(Region, BRT_SST_Fit) %>%
+    unnest(cols = c(BRT_SST_Fit))
+names(brt_fits_seas)[2:3]<- c("oisst_daily", "y")
+brt_fits_seas$Region <- factor(brt_fits_seas$Region, levels = c("CC", "NES"), labels = c("California_Current", "Northeast_US_Shelf"))
+
+sst_op_est_res<- ggplot() +
+        geom_path(data = sst_curve_dat_res, aes(x = MeanVar, y = Prediction), lwd = 2.5, color = "gray20", alpha = 0.5) +
+        geom_path(data = brt_fits_res, aes(x = oisst_daily, y = y), color = "#1b9e77", lwd = 1.5, alpha = 0.5) +
+        xlab("SST (deg C)") +
+        ylab("Habitat suitability") +
+        ylim(c(0, 1)) +
+        xlim(c(-1, 30)) +
+        theme_bw(base_size = 18) +
+        facet_wrap(~ Region, ncol = 2) +
+        ggtitle("Resident-mobile species archetype") +
+        theme(
+            strip.background = element_rect(colour = NA, fill = NA),
+            strip.text = element_text(size = 16, face = "bold"),
+            plot.caption = element_text(hjust = 0) 
+        ) 
+sst_op_est_seas<- ggplot() +
+        geom_path(data = sst_curve_dat_seas, aes(x = MeanVar, y = Prediction), lwd = 2.5, color = "gray20", alpha = 0.5) +
+        geom_path(data = brt_fits_seas, aes(x = oisst_daily, y = y), color = "#1b9e77", lwd = 1.5, alpha = 0.5) +
+        xlab("SST (deg C)") +
+        ylab("Habitat suitability") +
+        ylim(c(0, 1)) +
+        xlim(c(-1, 30)) +
+        theme_bw(base_size = 18) +
+        facet_wrap(~ Region, ncol = 2) +
+        ggtitle("Seasonally-migrating warm water species archetype") +
+        theme(
+            strip.background = element_rect(colour = NA, fill = NA),
+            strip.text = element_text(size = 16, face = "bold"),
+            plot.caption = element_text(hjust = 0)
+        ) 
+sst_op_est_both<- sst_op_est_res / sst_op_est_seas + plot_layout(guides = "collect")   
+ggsave(paste0(here::here("results/sst_op_est.jpg")), plot = sst_op_est_both, height = 8, width = 11) 
 
 ##### 
 ## Prediction statistics
@@ -1127,63 +987,6 @@ plot_dat_use <- plot_dat %>%
     ungroup() %>%
     select(., Species_Archetype, Region, Scenario, ModelTrainStart, ModelTrainEnd, Month, Year, Season, data, PrAUC_Scaled, Cor, RMSE, Calib, PrAUC_Scaled, HellDist) %>%
     distinct()
-
-corr_plot_res <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Mobile resident species archetype"), aes(x = HellDist, y = round(Cor, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
-    geom_point(size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(method = "lm", formula = y ~ x, se = F) +
-    # stat_poly_eq(geom = "text_npc", formula = y ~ x,
-    #            label.x = "left",
-    #            label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), 
-    #            eq.with.lhs = "",
-    #            aes(label = paste("bold(\"", factor(c("Winter", "Spring", "Summer", "Fall"), levels = c("Winter", "Spring", "Summer", "Fall")),
-    #                              " \")*",
-    #                              "italic(hat(y))~`=`~",
-    #                              stat(eq.label),
-    #                              sep = "")),
-    #            parse = TRUE) +
-    scale_fill_manual(name = "Prediction Target Season", values = colors_use) +
-    scale_color_manual(name = "Prediction Target Season", values = colors_use) +
-    xlab("Hellinger's Distance") +
-    ylab("Correlation Coefficient\nPredicted habitat suitability vs. True Presence/Absence") +
-    ylim(c(0, 0.9)) +
-    ggtitle("Mobile resident species archetype") +
-    facet_wrap(~ Region) +
-    theme_bw(base_size = 16) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold"), 
-        plot.caption = element_text(hjust = 0)
-    )
-
-corr_plot_seas <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Seasonal migrant species archetype"), aes(x = HellDist, y = round(Cor, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
-    geom_point(size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(method = "lm", formula = y ~ x, se = F) +
-    # stat_poly_eq(geom = "text_npc", formula = y ~ x,
-    #            label.x = "left",
-    #            label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), 
-    #            eq.with.lhs = "",
-    #            aes(label = paste("bold(\"", factor(c("Winter", "Spring", "Summer", "Fall"), levels = c("Winter", "Spring", "Summer", "Fall")),
-    #                              " \")*",
-    #                              "italic(hat(y))~`=`~",
-    #                              stat(eq.label),
-    #                              sep = "")),
-    #            parse = TRUE) +
-    scale_fill_manual(name = "Prediction Target Season", values = colors_use) +
-    scale_color_manual(name = "Prediction Target Season", values = colors_use) +
-    xlab("Hellinger's Distance") +
-    ylab("Correlation Coefficient\nPredicted habitat suitability vs. True Presence/Absence") +
-    ylim(c(0, 0.9)) +
-    ggtitle("Seasonal migrant species archetype") +
-    facet_wrap(~ Region) +
-    theme_bw(base_size = 16) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold"), 
-        plot.caption = element_text(hjust = 0)
-    )
-    
-corr_out<- corr_plot_res / corr_plot_seas + plot_layout(guides = "collect")
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "CorrCoeff.jpg"), width = 18, height = 15, dpi = 300, corr_out)
 
 pr_auc_plot_res <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Mobile resident species archetype"), aes(x = HellDist, y = round(PrAUC_Scaled, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
     geom_point(size = 3, pch = 21, alpha = 0.4) +
@@ -1239,63 +1042,7 @@ pr_auc_plot_seas<- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Arche
         plot.caption = element_text(hjust = 0) 
     )
 pr_auc_out<- pr_auc_plot_res / pr_auc_plot_seas + plot_layout(guides = "collect")
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "PrAUC_Scaled.jpg"), width = 18, height = 15, dpi = 300, pr_auc_out)
-
-rmse_plot_res <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Mobile resident species archetype"), aes(x = HellDist, y = round(RMSE, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
-    geom_point(size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(method = "lm", formula = y ~ x, se = F) +
-    # stat_poly_eq(geom = "text_npc", formula = y ~ x,
-    #            label.x = "left",
-    #            label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), 
-    #            eq.with.lhs = "",
-    #            aes(label = paste("bold(\"", factor(c("Winter", "Spring", "Summer", "Fall"), levels = c("Winter", "Spring", "Summer", "Fall")),
-    #                              " \")*",
-    #                              "italic(hat(y))~`=`~",
-    #                              stat(eq.label),
-    #                              sep = "")),
-    #            parse = TRUE) +
-    scale_fill_manual(name = "Prediction Target Season", values = colors_use) +
-    scale_color_manual(name = "Prediction Target Season", values = colors_use) +
-    xlab("Hellinger's Distance") +
-    ylab("Root mean square error") +
-    ylim(c(0.19, 0.5)) +
-    ggtitle("Mobile resident species archetype") +
-    facet_wrap(~ Region) +
-    theme_bw(base_size = 16) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold"),
-        plot.caption = element_text(hjust = 0) 
-    )
-
-rmse_plot_seas<- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Seasonal migrant species archetype"), aes(x = HellDist, y = round(RMSE, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
-    geom_point(size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(method = "lm", formula = y ~ x, se = F) +
-    # stat_poly_eq(geom = "text_npc", formula = y ~ x,
-    #            label.x = "left",
-    #            label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), 
-    #            eq.with.lhs = "",
-    #            aes(label = paste("bold(\"", factor(c("Winter", "Spring", "Summer", "Fall"), levels = c("Winter", "Spring", "Summer", "Fall")),
-    #                              " \")*",
-    #                              "italic(hat(y))~`=`~",
-    #                              stat(eq.label),
-    #                              sep = "")),
-    #            parse = TRUE) +
-    scale_fill_manual(name = "Prediction Target Season", values = colors_use) +
-    scale_color_manual(name = "Prediction Target Season", values = colors_use) +
-    xlab("Hellinger's Distance") +
-    ylab("Root mean square error") +
-    ylim(c(0.19, 0.5)) +
-    ggtitle("Seasonal migrant species archetype") +
-    facet_wrap(~ Region) +
-    theme_bw(base_size = 16) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold"),
-        plot.caption = element_text(hjust = 0) 
-    )
-rmse_out<- rmse_plot_res / rmse_plot_seas + plot_layout(guides = "collect")
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "RMSE.jpg"), width = 18, height = 15, dpi = 300, rmse_out)
+ggsave(filename = paste0(here::here("results/"), "PrAUC_Scaled.jpg"), width = 18, height = 15, dpi = 300, pr_auc_out)
 
 calib_plot_res <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Mobile resident species archetype"), aes(x = HellDist, y = round(Calib, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
     geom_point(size = 3, pch = 21, alpha = 0.4) +
@@ -1351,889 +1098,4 @@ calib_plot_seas<- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archet
         plot.caption = element_text(hjust = 0) 
     )
 calib_out<- calib_plot_res / calib_plot_seas + plot_layout(guides = "collect")
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "Calib.jpg"), width = 18, height = 15, dpi = 300, calib_out)
-
-#####
-## Modeling prediction skill as a function of other variables
-#####
-species_archetypes <- unique(plot_dat_use$Species_Archetype)
-
-for(g in seq_along(species_archetypes)){
-    cc_dat <- plot_dat_use %>%
-        filter(., Region == "CC" & Species_Archetype == species_archetypes[g])
-    # corr_lm <- lm(Cor ~ HellDist * Season, data = cc_dat)
-    pr_auc_scaled_lm <- lm(PrAUC_Scaled ~ HellDist * Season, data = cc_dat)
-    calib_lm <- lm(Calib ~ HellDist * Season, data = cc_dat)
-    # rmse_lm <- lm(RMSE ~ HellDist * Season, data = cc_dat)
-
-    # Marginal effects
-    ggeffect(pr_auc_scaled_lm, terms = c("HellDist", "Season")) %>%
-        plot()
-    ggeffect(calib_lm, terms = c("HellDist", "Season")) %>%
-        plot()
-    
-    
-    models <- list("PrAUC_Scaled" = pr_auc_scaled_lm, "Calib" = calib_lm)
-    cc_mod_summ <- modelsummary(models,
-        fmt = 3,
-        estimate = c("{estimate} ({std.error}){stars}"),
-        stars = c("*" = 0.05),
-        coef_rename = c(
-            "HellDist" = "Hellinger Distance",
-            "SeasonSpring" = "Spring", "SeasonSummer" = "Summer", "SeasonFall" = "Fall",
-            "HellDist:SeasonSpring" = "Hellingers Distance:Spring",
-            "HellDist:SeasonSummer" = "Hellingers Distance:Summer",
-            "HellDist:SeasonFall" = "Hellingers Distance:Fall"
-        ),
-        statistic = NULL,
-        coef_omit = "Intercept",
-        gof_omit = c("Num.Obs|R2|BIC|Log.Lik.|F|RMSE|AIC"),
-        output = "data.frame"
-    )
-
-    # GT testing
-    cc_mod_summ <- cc_mod_summ %>%
-        select(-part, -statistic) 
-    
-    which_sig <- sapply(rownames(cc_mod_summ), function(x) grep("\\*$", cc_mod_summ[x, ])) %>%
-        enframe() %>%
-        unnest()
-    colnames(which_sig) <- c("Row", "Col")
-
-    which_neg <- sapply(rownames(cc_mod_summ), function(x) grep("-", cc_mod_summ[x, ])) %>%
-        enframe() %>%
-        unnest()
-    colnames(which_neg) <- c("Row_Neg", "Col_Neg")
-    which_neg$Sign<- "Negative"
-
-    # Changes
-    changes <- which_sig %>%
-        left_join(., which_neg, by = c("Row" = "Row_Neg", "Col" = "Col_Neg"))
-    
-    changes$Sign[is.na(changes$Sign)]<- "Positive"
-    
-    # PrAUC significant AND positive is good -- which_sig value = 2, which_pos = T and Calib significant AND negative is good -- which_sig value = 3, which_pos = F
-    good_change_prauc <- changes %>%
-        filter(., Col == 2 & Sign == "Positive")
-    bad_change_prauc<- changes %>%
-        filter(., Col == 2 & Sign == "Negative")
-    good_change_calib <- changes %>%
-        filter(., Col == 3 & Sign == "Negative")
-    bad_change_calib <- changes %>%
-        filter(., Col == 3 & Sign == "Positive")
-    
-    cc_mod_summ_num <- cc_mod_summ %>%
-        gt() %>%
-        tab_header(
-            title = as.character(species_archetypes[g]),
-            subtitle = "CC"
-        ) %>%
-        tab_style(
-            style = list(
-                cell_text(color = "#5AAE61", weight = "bold")
-            ),
-            locations = cells_body(
-                columns = as.numeric(good_change_prauc$Col),
-                rows = as.numeric(good_change_prauc$Row)
-            )
-        ) %>%
-        tab_style(
-            style = list(
-                cell_text(color = "#5AAE61", weight = "bold")
-            ),
-            locations = cells_body(
-                columns = as.numeric(good_change_calib$Col),
-                rows = as.numeric(good_change_calib$Row)
-            )
-        ) %>%
-        tab_style(
-            style = list(
-                cell_text(color = "#9970AB", weight = "bold")
-            ),
-            locations = cells_body(
-                columns = as.numeric(bad_change_prauc$Col),
-                rows = as.numeric(bad_change_prauc$Row)
-            )
-        ) %>%
-        tab_style(
-            style = list(
-                cell_text(color = "#9970AB", weight = "bold")
-            ),
-            locations = cells_body(
-                columns = as.numeric(bad_change_calib$Col),
-                rows = as.numeric(bad_change_calib$Row)
-            )
-        )
-
-    # Save numeric one
-    gtsave(cc_mod_summ_num, here::here(paste0("pipelines/sim_spp/images/CC_", species_archetypes[g], "_PredSkill_LM_num.png")))
-    
-    icon_fun <- function(icon, fill, val) {
-        fontawesome::fa(icon, fill = fill) %>%
-            rep(., val) %>%
-            gt::html()
-    }
-
-    changes_neut <- expand.grid("Row" = as.character(seq(1, 7)), "Col" = seq(2, 3)) %>%
-        anti_join(., which_sig)
-    
-    cc_mod_summ_icon <- cc_mod_summ %>%
-        gt() %>%
-        tab_header(
-            title = as.character(species_archetypes[g]),
-            subtitle = "CC"
-        ) %>%
-        text_transform(
-            locations = cells_body(
-                columns = as.numeric(changes_neut$Col),
-                rows = as.numeric(changes_neut$Row)
-            ),
-            fn = function(x) {
-                icon_fun(icon = "fas fa-circle", fill = "gray", val = 1)
-            }
-        ) %>%
-        text_transform(
-            locations = cells_body(
-                columns = as.numeric(good_change_prauc$Col),
-                rows = as.numeric(good_change_prauc$Row)
-            ),
-            fn = function(x) {
-                icon_fun(icon = "fas fa-thumbs-up", fill = "#5AAE61", val = 1)
-            }
-        ) %>%
-        text_transform(
-            locations = cells_body(
-                columns = as.numeric(good_change_calib$Col),
-                rows = as.numeric(good_change_calib$Row)
-            ),
-            fn = function(x) {
-                icon_fun(icon = "fas fa-thumbs-up", fill = "#5AAE61", val = 1)
-            }
-        ) %>%
-         text_transform(
-            locations = cells_body(
-                columns = as.numeric(bad_change_prauc$Col),
-                rows = as.numeric(bad_change_prauc$Row)
-            ),
-            fn = function(x) {
-                icon_fun(icon = "fas fa-thumbs-down", fill = "#9970AB", val = 1)
-            }
-        ) %>%
-        text_transform(
-            locations = cells_body(
-                columns = as.numeric(bad_change_calib$Col),
-                rows = as.numeric(bad_change_calib$Row)
-            ),
-            fn = function(x) {
-                icon_fun(icon = "fas fa-thumbs-down", fill = "#9970AB", val = 1)
-            }
-        ) 
-    gtsave(cc_mod_summ_icon, here::here(paste0("pipelines/sim_spp/images/CC_", species_archetypes[g], "_PredSkill_LM_icon.png")))
-
-    rm(models)
-    ne_dat <- plot_dat_use %>%
-        filter(., Region == "NES" & Species_Archetype == species_archetypes[g])
-    
-    # corr_lm <- lm(Cor ~ HellDist * Season, data = ne_dat)
-    pr_auc_scaled_lm <- lm(PrAUC_Scaled ~ HellDist * Season, data = ne_dat)
-    calib_lm <- lm(Calib ~ HellDist * Season, data = ne_dat)
-    # rmse_lm <- lm(RMSE ~ HellDist * Season, data = ne_dat)
-    
-    models<- list("PrAUC_Scaled" = pr_auc_scaled_lm, "Calib" = calib_lm)
-    ne_mod_summ <- modelsummary(models,
-        fmt = 2,
-        estimate = c("{estimate} ({std.error}){stars}"),
-        stars = c("*" = 0.05),
-        coef_rename = c(
-            "HellDist" = "Hellinger Distance",
-            "SeasonSpring" = "Spring", "SeasonSummer" = "Summer", "SeasonFall" = "Fall",
-            "HellDist:SeasonSpring" = "Hellingers Distance:Spring",
-            "HellDist:SeasonSummer" = "Hellingers Distance:Summer",
-            "HellDist:SeasonFall" = "Hellingers Distance:Fall"
-        ),
-        statistic = NULL,
-        coef_omit = "Intercept",
-        gof_omit = c("Num.Obs|R2|BIC|Log.Lik.|F|RMSE|AIC"),
-        output = "data.frame"
-    )
-    
-    ne_mod_summ <- ne_mod_summ %>%
-        select(-part, -statistic)
-    
-    which_sig <- sapply(rownames(ne_mod_summ), function(x) grep("\\*$", ne_mod_summ[x, ])) %>%
-        enframe() %>%
-        unnest()
-    colnames(which_sig) <- c("Row", "Col")
-
-    which_neg <- sapply(rownames(ne_mod_summ), function(x) grep("-", ne_mod_summ[x, ])) %>%
-        enframe() %>%
-        unnest()
-    colnames(which_neg) <- c("Row_Neg", "Col_Neg")
-    which_neg$Sign<- "Negative"
-
-    # Changes
-    changes <- which_sig %>%
-        left_join(., which_neg, by = c("Row" = "Row_Neg", "Col" = "Col_Neg"))
-    
-    changes$Sign[is.na(changes$Sign)]<- "Positive"
-    
-    # PrAUC significant AND positive is good -- which_sig value = 2, which_pos = T and Calib significant AND negative is good -- which_sig value = 3, which_pos = F
-    good_change_prauc <- changes %>%
-        filter(., Col == 2 & Sign == "Positive")
-    bad_change_prauc<- changes %>%
-        filter(., Col == 2 & Sign == "Negative")
-    good_change_calib <- changes %>%
-        filter(., Col == 3 & Sign == "Negative")
-    bad_change_calib <- changes %>%
-        filter(., Col == 3 & Sign == "Positive")
-    
-    ne_mod_summ_num <- ne_mod_summ %>%
-        gt() %>%
-        tab_header(
-            title = as.character(species_archetypes[g]),
-            subtitle = "NES"
-        ) %>%
-        tab_style(
-            style = list(
-                cell_text(color = "#5AAE61", weight = "bold")
-            ),
-            locations = cells_body(
-                columns = as.numeric(good_change_prauc$Col),
-                rows = as.numeric(good_change_prauc$Row)
-            )
-        ) %>%
-        tab_style(
-            style = list(
-                cell_text(color = "#5AAE61", weight = "bold")
-            ),
-            locations = cells_body(
-                columns = as.numeric(good_change_calib$Col),
-                rows = as.numeric(good_change_calib$Row)
-            )
-        ) %>%
-        tab_style(
-            style = list(
-                cell_text(color = "#9970AB", weight = "bold")
-            ),
-            locations = cells_body(
-                columns = as.numeric(bad_change_prauc$Col),
-                rows = as.numeric(bad_change_prauc$Row)
-            )
-        ) %>%
-        tab_style(
-            style = list(
-                cell_text(color = "#9970AB", weight = "bold")
-            ),
-            locations = cells_body(
-                columns = as.numeric(bad_change_calib$Col),
-                rows = as.numeric(bad_change_calib$Row)
-            )
-        ) %>%
-        cols_hide("term")
-
-    # Save numeric one
-    gtsave(ne_mod_summ_num, here::here(paste0("pipelines/sim_spp/images/NES_", species_archetypes[g], "_PredSkill_LM_num.png")))
-    
-    icon_fun <- function(icon, fill, val) {
-        fontawesome::fa(icon, fill = fill) %>%
-            rep(., val) %>%
-            gt::html()
-    }
-
-    changes_neut <- expand.grid("Row" = as.character(seq(1, 7)), "Col" = seq(2, 3)) %>%
-        anti_join(., which_sig)
-    
-    ne_mod_summ_icon <- ne_mod_summ %>%
-        gt() %>%
-        tab_header(
-            title = as.character(species_archetypes[g]),
-            subtitle = "NES"
-        ) %>%
-        text_transform(
-            locations = cells_body(
-                columns = as.numeric(changes_neut$Col),
-                rows = as.numeric(changes_neut$Row)
-            ),
-            fn = function(x) {
-                icon_fun(icon = "fas fa-circle", fill = "gray", val = 1)
-            }
-        ) %>%
-        text_transform(
-            locations = cells_body(
-                columns = as.numeric(good_change_prauc$Col),
-                rows = as.numeric(good_change_prauc$Row)
-            ),
-            fn = function(x) {
-                icon_fun(icon = "fas fa-thumbs-up", fill = "#5AAE61", val = 1)
-            }
-        ) %>%
-        text_transform(
-            locations = cells_body(
-                columns = as.numeric(good_change_calib$Col),
-                rows = as.numeric(good_change_calib$Row)
-            ),
-            fn = function(x) {
-                icon_fun(icon = "fas fa-thumbs-up", fill = "#5AAE61", val = 1)
-            }
-        ) %>%
-         text_transform(
-            locations = cells_body(
-                columns = as.numeric(bad_change_prauc$Col),
-                rows = as.numeric(bad_change_prauc$Row)
-            ),
-            fn = function(x) {
-                icon_fun(icon = "fas fa-thumbs-down", fill = "#9970AB", val = 1)
-            }
-        ) %>%
-        text_transform(
-            locations = cells_body(
-                columns = as.numeric(bad_change_calib$Col),
-                rows = as.numeric(bad_change_calib$Row)
-            ),
-            fn = function(x) {
-                icon_fun(icon = "fas fa-thumbs-down", fill = "#9970AB", val = 1)
-            }
-        ) %>%
-        cols_hide("term")
-    gtsave(ne_mod_summ_icon, here::here(paste0("pipelines/sim_spp/images/NES_", species_archetypes[g], "_PredSkill_LM_icon.png")))
-
-    # Combined tables
-    library(cowplot)
-    num_plot_cc <- ggdraw() + draw_image(here::here(paste0("pipelines/sim_spp/images/CC_", species_archetypes[g], "_PredSkill_LM_num.png")))
-    num_plot_nes <- ggdraw() + draw_image(here::here(paste0("pipelines/sim_spp/images/NES_", species_archetypes[g], "_PredSkill_LM_num.png")))
-    num_combo <- plot_grid(num_plot_cc, num_plot_nes, rel_widths = c(1, 0.998), rel_heights = c(1, 0.998))
-    save_plot(here::here(paste0("pipelines/sim_spp/images/", species_archetypes[g], "_PredSkill_LM_num.png")), num_combo)
-
-    icon_plot_cc <- ggdraw() + draw_image(here::here(paste0("pipelines/sim_spp/images/CC_", species_archetypes[g], "_PredSkill_LM_icon.png")))
-    icon_plot_nes <- ggdraw() + draw_image(here::here(paste0("pipelines/sim_spp/images/NES_", species_archetypes[g], "_PredSkill_LM_icon.png")))
-    icon_combo <- plot_grid(icon_plot_cc, icon_plot_nes, rel_widths = c(1, 0.998), rel_heights = c(1, 0.998))
-    save_plot(here::here(paste0("pipelines/sim_spp/images/", species_archetypes[g], "_PredSkill_LM_icon.png")), icon_combo)
-}
-
-## Marginal effects
-install.packages("ggeffects")
-library(ggeffects)
-ggeffect(calib.lm, terms = c("HellDist", "Season")) %>% 
-  plot()
-
-
-
-
-
-
-
-
-# How does novelty influence the proportion of good/bad habitat by season?
-plot_dat_temp <- plot_dat %>%
-    ungroup() %>%
-    dplyr::select(., Species_Archetype, Region, Scenario, Season, HellDist, AvgProbs, HighProbs, LowProbs) %>%
-    gather(., key = "Probs", value = "Value", -Species_Archetype, -Region, -Scenario, -Season, -HellDist)
-plot_dat_temp$Probs <- factor(plot_dat_temp$Probs, levels = c("LowProbs", "AvgProbs", "HighProbs"))
-plot_dat_temp$Species_Archetype<- gsub(" warm water", "", plot_dat_temp$Species_Archetype)
-
-props_prob_plot<- ggplot(data = plot_dat_temp, aes(x = HellDist, y = Value, color = Probs, group = Probs)) +
-    geom_point(aes(fill = Probs), size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(data = plot_dat_temp, method = "lm", formula = y ~ x, se = F) +
-    stat_poly_eq(geom = "text_npc", formula = y ~ x,
-               label.x = "left",
-               label.y = rev(seq(from = 0.7, to = 1, length.out = 3)), 
-               eq.with.lhs = "",
-               aes(label = paste("italic(hat(y))~`=`~",
-                                 stat(eq.label),
-                                 sep = "")),
-               parse = TRUE) +
-    scale_fill_manual(name = "True Probability Value Bin", values = c("#313695", "#636363", "#a50026")) +
-    scale_color_manual(name = "True Probability Value Bin", values = c("#313695", "#636363", "#a50026")) +
-    scale_y_continuous("", limits = c(-0.15, 1.4)) +
-    facet_wrap(~ Species_Archetype + Region + Season) +
-    theme_bw(base_size = 14) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 14, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "PropProbs", plot_suff, ".jpg"), height = 11, width = 15, dpi = 300, props_prob_plot)
-
-## Not just about Hellinger's Distance, but also WHERE that novelty occurs -- or where you fall on the normal curve
-curve_loc_func <- function(mean_use, sd_use, pred_use) {
-    pnorm_temp <- pnorm(pred_use, mean = mean_use, sd = sd_use)
-    curve_loc_out <- abs(0.5 - pnorm_temp)
-    return(curve_loc_out)
-}
-
-curve_loc <- fore_summs %>%
-    ungroup() %>%
-    dplyr::select(., Species_Archetype, Region, Scenario, Month, Year, FitSSTMean, FitSSTSD, PredSSTMean) %>%
-    mutate(., "CurveLoc" = pmap_dbl(list(mean_use = FitSSTMean, sd_use = FitSSTSD, pred_use = PredSSTMean), curve_loc_func))
-
-max_hdist_table <- plot_dat %>%
-    dplyr::select(., Region, Scenario, HellDist) %>%
-    group_by(., Region, Scenario) %>%
-    summarize(., "Max_HellDist" = max(HellDist),
-    "Min_HellDist" = min(HellDist))
-
-curve_loc <- curve_loc %>%
-    left_join(., max_hdist_table) %>%
-    group_by(., Region) %>%
-    nest()
-
-rescale_group<- function(data){
-    scale_out <- rescale(data$CurveLoc, min = unique(data$Min_HellDist), max = unique(data$Max_HellDist))
-    return(scale_out)
-}
-
-curve_loc <- curve_loc %>%
-    mutate(., "RescaledCurveLoc" = map(data, rescale_group)) %>%
-    dplyr::select(., Region, RescaledCurveLoc) %>%
-    unnest()
-
-plot_dat$RescaledCurveLoc<- curve_loc$RescaledCurveLoc
-plot_dat<- plot_dat %>%
-    mutate(., "HellDistCurveLoc" = HellDist + RescaledCurveLoc)
-
-## GLMM?
-corr_mod <- lm(Cor ~ Species_Archetype * Region + HellDist * CurveLoc, data = plot_dat)
-f1_mod <- lm(F1 ~ Species_Archetype * Region + HellDist * CurveLoc, data = plot_dat)
-rmse_mod<- lm(RMSE ~ Species_Archetype * Region + HellDist * CurveLoc, data = plot_dat)
-
-prev_plot <- ggplot(data = plot_dat, aes(x = HellDist, y = Prev, fill = Season, shape = Season, group = Season, color = Season)) +
-    geom_point(, size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(data = plot_dat, aes(x = HellDist, y = Prev, color = Season, group = Season), method = "lm", formula = y ~ x, se = F) +
-    stat_poly_eq(geom = "text_npc", formula = y ~ x,
-               label.x = "left",
-               label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), 
-               eq.with.lhs = "",
-               aes(label = paste("bold(\"", factor(c("Winter", "Spring", "Summer", "Fall"), levels = c("Winter", "Spring", "Summer", "Fall")),
-                                 " \")*",
-                                 "italic(hat(y))~`=`~",
-                                 stat(eq.label),
-                                 sep = "")),
-               parse = TRUE) +
-    scale_fill_manual(name = "Forecast Target Season", values = colors_use) +
-    scale_color_manual(name = "Forecast Target Season", values = colors_use) +
-    xlab("Hellinger's Distance") +
-    ylab("Prevalence") +
-    facet_wrap(~ Region + Species_Archetype) +
-    theme_bw(base_size = 12) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "Prev", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, prev_plot)
-
-tally_plot <- ggplot(data = plot_dat, aes(x = HellDist, y = Probs05, fill = Season, shape = Season, group = Season, color = Season)) +
-    geom_point(, size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(data = plot_dat, aes(x = HellDist, y = Probs05, color = Season, group = Season), method = "lm", formula = y ~ x, se = F) +
-    stat_poly_eq(geom = "text_npc", formula = y ~ x,
-               label.x = "left",
-               label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), 
-               eq.with.lhs = "",
-               aes(label = paste("bold(\"", factor(c("Winter", "Spring", "Summer", "Fall"), levels = c("Winter", "Spring", "Summer", "Fall")),
-                                 " \")*",
-                                 "italic(hat(y))~`=`~",
-                                 stat(eq.label),
-                                 sep = "")),
-               parse = TRUE) +
-    scale_fill_manual(name = "Forecast Target Season", values = colors_use) +
-    scale_color_manual(name = "Forecast Target Season", values = colors_use) +
-    xlab("Hellinger's Distance") +
-    ylab("Proportion of cells\nwith true habitat suitability between 0.4 and 0.6") +
-    facet_wrap(~ Region + Species_Archetype) +
-    theme_bw(base_size = 12) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "Tally", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, tally_plot)
-
-plot_dat<- plot_dat %>%
-    select(., Species_Archetype, Region, Scenario, ModelTrainStart, ModelTrainEnd, Month, Year, Season, data, Cor, MAE_PA, MAE_HSI, TSS, AUC, PrAUC, Sens, Spec, HellDist, HellDistCurveLoc) %>%
-    distinct()
-
-
-
-corr_plot <- ggplot(data = plot_dat, aes(x = HellDist, y = round(Cor, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
-    geom_point(size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(method = "lm", formula = y ~ x, se = F) +
-    stat_poly_eq(geom = "text_npc", formula = y ~ x,
-               label.x = "left",
-               label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), 
-               eq.with.lhs = "",
-               aes(label = paste("bold(\"", factor(c("Winter", "Spring", "Summer", "Fall"), levels = c("Winter", "Spring", "Summer", "Fall")),
-                                 " \")*",
-                                 "italic(hat(y))~`=`~",
-                                 stat(eq.label),
-                                 sep = "")),
-               parse = TRUE) +
-    scale_fill_manual(name = "Forecast Target Season", values = colors_use) +
-    scale_color_manual(name = "Forecast Target Season", values = colors_use) +
-    xlab("Hellinger's Distance") +
-    ylab("Correlation Coefficient\nPredicted probability of presence vs. True Presence/Absence") +
-    facet_wrap(~ Region + Species_Archetype) +
-    theme_bw(base_size = 12) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "Cor", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, corr_plot)
-
-tss_plot <- ggplot(data = plot_dat, aes(x = HellDist, y = round(TSS, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
-    geom_point(size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(method = "lm", formula = y ~ x, se = F) +
-    stat_poly_eq(geom = "text_npc", formula = y ~ x,
-               label.x = "left",
-               label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), 
-               eq.with.lhs = "",
-               aes(label = paste("bold(\"", factor(c("Winter", "Spring", "Summer", "Fall"), levels = c("Winter", "Spring", "Summer", "Fall")),
-                                 " \")*",
-                                 "italic(hat(y))~`=`~",
-                                 stat(eq.label),
-                                 sep = "")),
-               parse = TRUE) +
-    scale_fill_manual(name = "Forecast Target Season", values = colors_use) +
-    scale_color_manual(name = "Forecast Target Season", values = colors_use) +
-    xlab("Hellinger's Distance") +
-    ylab("True Skill Statistic\nSensitivity+Specificity -1") +
-    facet_wrap(~ Region + Species_Archetype) +
-    theme_bw(base_size = 12) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "TSS", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, tss_plot)
-
-
-auc_plot <- ggplot(data = plot_dat, aes(x = HellDist, y = AUC, fill = Season, shape = Season, color = Season, group = Season)) +
-    geom_point(size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(method = "lm", formula = y ~ x, se = F) +
-    stat_poly_eq(geom = "text_npc", formula = y ~ x,
-               label.x = "left",
-               label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), 
-               eq.with.lhs = "",
-               aes(label = paste("bold(\"", factor(c("Winter", "Spring", "Summer", "Fall"), levels = c("Winter", "Spring", "Summer", "Fall")),
-                                 " \")*",
-                                 "italic(hat(y))~`=`~",
-                                 stat(eq.label),
-                                 sep = "")),
-               parse = TRUE) +
-    scale_fill_manual(name = "Forecast Target Season", values = colors_use) +
-    scale_color_manual(name = "Forecast Target Season", values = colors_use) +
-    xlab("Hellinger's Distance") +
-    ylab("AUC") +
-    facet_wrap(~Region+Species_Archetype) +
-    theme_bw(base_size = 12) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "AUC", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, auc_plot)
-
-f1_plot <- ggplot(data = plot_dat, aes(x = HellDist, y = F1, fill = Season, shape = Season, color = Season, group = Season)) +
-    geom_point(size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(method = "lm", formula = y ~ x, se = F) +
-    stat_poly_eq(geom = "text_npc", formula = y ~ x,
-               label.x = "left",
-               label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), 
-               eq.with.lhs = "",
-               aes(label = paste("bold(\"", factor(c("Winter", "Spring", "Summer", "Fall"), levels = c("Winter", "Spring", "Summer", "Fall")),
-                                 " \")*",
-                                 "italic(hat(y))~`=`~",
-                                 stat(eq.label),
-                                 sep = "")),
-               parse = TRUE) +
-    scale_fill_manual(name = "Forecast Target Season", values = colors_use) +
-    scale_color_manual(name = "Forecast Target Season", values = colors_use) +
-    xlab("Hellinger's Distance") +
-    ylab("F1 Measure") +
-    facet_wrap(~Region+Species_Archetype) +
-    theme_bw(base_size = 12) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "F1", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, f1_plot)
-
-raw_diff_plot <- ggplot(data = plot_dat, aes(x = HellDist, y = RawDiff, fill = Season, shape = Season, color = Season, group = Season)) +
-    geom_point(size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(method = "lm", formula = y ~ x, se = F) +
-    stat_poly_eq(geom = "text_npc", formula = y ~ x,
-               label.x = "left",
-               label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), 
-               eq.with.lhs = "",
-               aes(label = paste("bold(\"", factor(c("Winter", "Spring", "Summer", "Fall"), levels = c("Winter", "Spring", "Summer", "Fall")),
-                                 " \")*",
-                                 "italic(hat(y))~`=`~",
-                                 stat(eq.label),
-                                 sep = "")),
-               parse = TRUE) +
-    scale_fill_manual(name = "Forecast Target Season", values = colors_use) +
-    scale_color_manual(name = "Forecast Target Season", values = colors_use) +
-    xlab("Hellinger's Distance") +
-    ylab("Raw Difference Between Predicted and True HSI") +
-    facet_wrap(~Region+Species_Archetype) +
-    theme_bw(base_size = 12) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "RawDiff", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, raw_diff_plot)
-
-rmse_plot <- ggplot(data = plot_dat, aes(x = HellDist, y = round(RMSE, 2), fill = Season, shape = Season, color = Season, group = Season)) +
-    geom_point(size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(method = "lm", formula = y ~ x, se = F) +
-    stat_poly_eq(geom = "text_npc", formula = y ~ x,
-               label.x = "left",
-               label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), 
-               eq.with.lhs = "",
-               aes(label = paste("bold(\"", factor(c("Winter", "Spring", "Summer", "Fall"), levels = c("Winter", "Spring", "Summer", "Fall")),
-                                 " \")*",
-                                 "italic(hat(y))~`=`~",
-                                 stat(eq.label),
-                                 sep = "")),
-               parse = TRUE) +
-    scale_fill_manual(name = "Forecast Target Season", values = colors_use) +
-    scale_color_manual(name = "Forecast Target Season", values = colors_use) +
-    scale_y_continuous(name = "Root mean square error", limits = c(0.15, 0.5)) +
-    xlab("Hellinger's Distance") +
-    facet_wrap(~Region+Species_Archetype) +
-    theme_bw(base_size = 12) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "RMSE", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, rmse_plot)
-
-
-plot_dat$MAE_HSI<- round(plot_dat$MAE_HSI)
-mae_hsi_plot <- ggplot() +
-    geom_point(data = plot_dat, aes(x = HellDist, y = round(MAE_HSI, 2), fill = Season, shape = Season, group = Season), size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(data = plot_dat, aes(x = HellDist, y = round(MAE_HSI, 2), color = Season, group = Season), method = "lm", formula = y ~ x, se = F) +
-    scale_fill_manual(name = "Forecast Target Season", values = colors_use) +
-    scale_color_manual(name = "Forecast Target Season", values = colors_use) +
-    xlab("Hellinger's Distance\n*Note axis scale change*") +
-    ylab("Mean Absolute Error\nPredicted vs. True Habitat Suitability") +
-    facet_wrap(~Region+Species_Archetype) +
-    theme_bw(base_size = 12) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "MAE_HSI", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, mae_hsi_plot)
-
-
-
-pr_auc_plot1 <- ggplot() +
-    geom_point(data = plot_dat[1,], aes(x = HellDist, y = PrAUC, fill = Season, shape = Season, group = Season), size = 3, pch = 21, alpha = 0.4) +
-    # stat_smooth(data = plot_dat, aes(x = HellDist, y = PrAUC, color = Season, group = Season), method = "lm", formula = y ~ x, se = F) +
-    scale_fill_manual(name = "Forecast Target Season", values = colors_use) +
-    scale_color_manual(name = "Forecast Target Season", values = colors_use) +
-    xlab("Hellinger's Distance\n*Note axis scale change*") +
-    ylab("PR-AUC") +
-    facet_wrap(~Region+Species_Archetype, scales = "free_x") +
-    theme_bw(base_size = 12) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "PRAUC1", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, pr_auc_plot1)
-
-plot_dat_simp <- plot_dat
-plot_dat_simp$Region <- ifelse(plot_dat_simp$Region == "CCS", "California Current", "Northeast Shelf")
-pr_auc_plot_simp <- ggplot() +
-    geom_point(data = subset(plot_dat_simp, Species_Archetype == "Resident"), aes(x = HellDist, y = PrAUC, fill = Region), size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(data = plot_dat_simp, aes(x = HellDist, y = PrAUC, color = Region), method = "lm", formula = y ~ x, se = F) +
-    scale_fill_manual(name = "Large marine ecosystem", values = colors_use) +
-    scale_color_manual(name = "Large marine ecosystem", values = colors_use) +
-    scale_x_continuous(name = "Environmental novelty", labels = c("None", "Mild", "Extreme"), breaks = c(0, 0.25, 0.5), limits = c(0, 0.5)) +
-    xlab("Hellinger's Distance") +
-    ylab("PR-AUC") +
-    facet_wrap(~Region) +
-    theme_bw(base_size = 16) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 18),
-        legend.position = "none"
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "PRAUC_Simp", plot_suff, ".png"), height = 8, width = 11, dpi = 600, pr_auc_plot_simp)
-ggsave(filename = paste0("~/Desktop/", "PRAUC_Simp", plot_suff, ".png"), height = 8, width = 11, dpi = 600, pr_auc_plot_simp)
-
-pr_auc_plot <- ggplot() +
-    geom_point(data = plot_dat, aes(x = HellDist, y = PrAUC, fill = Season, shape = Season, group = Season), size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(data = plot_dat, aes(x = HellDist, y = PrAUC, color = Season, group = Season), method = "lm", formula = y ~ x, se = F) +
-    scale_fill_manual(name = "Forecast Target Season", values = colors_use) +
-    scale_color_manual(name = "Forecast Target Season", values = colors_use) +
-    xlab("Hellinger's Distance") +
-    ylab("PR-AUC") +
-    facet_wrap(~Region+Species_Archetype) +
-    theme_bw(base_size = 12) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "PRAUC", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, pr_auc_plot)
-
-tss_plot <- ggplot() +
-    geom_point(data = plot_dat, aes(x = HellDist, y = TSS, fill = Season, shape = Season, group = Season), size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(data = plot_dat, aes(x = HellDist, y = TSS, color = Season, group = Season), method = "lm", formula = y ~ x, se = F) +
-    scale_fill_manual(name = "Forecast Target Season", values = colors_use) +
-    scale_color_manual(name = "Forecast Target Season", values = colors_use) +
-    xlab("Hellinger's Distance") +
-    ylab("True skill statistic\n(Sensitivity + Specificity - 1)") +
-    facet_wrap(~Region+Species_Archetype) +
-    theme_bw(base_size = 12) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "TSS", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, tss_plot)
-
-#####
-### Need a plot that shows the complexity in the relationship among novel conditions, temperature-response curve and prediction skill
-#####
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mae_plot <- ggplot() +
-    geom_point(data = plot_dat, aes(x = HellDist, y = MAE_PA, fill = Season, shape = Season, group = Season), size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(data = plot_dat, aes(x = HellDist, y = MAE_PA, color = Season, group = Season), method = "lm", formula = y ~ x, se = F) +
-    scale_fill_manual(name = "Forecast Target Season", values = colors_use) +
-    scale_color_manual(name = "Forecast Target Season", values = colors_use) +
-    # scale_shape_manual(name = "Forecast Target Season", values = c(21, 22, 23, 24)) +
-    xlab("Hellinger's Distance\n*Note axis scale change*") +
-    ylab("Mean Absolute Error") +
-    # ylim(mae_scales) +
-    # xlim(hdist_scale) +
-    facet_wrap(~Region+Species_Archetype) +
-    theme_bw(base_size = 12) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "MAE_PA", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, mae_plot)
-
-sens_plot <- ggplot() +
-    geom_point(data = plot_dat, aes(x = HellDist, y = Sens, fill = Season, shape = Season, group = Season), size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(data = plot_dat, aes(x = HellDist, y = Sens, color = Season, group = Season), method = "lm", formula = y ~ x, se = F) +
-    scale_fill_manual(name = "Forecast Target Season", values = colors_use) +
-    scale_color_manual(name = "Forecast Target Season", values = colors_use) +
-    # scale_shape_manual(name = "Forecast Target Season", values = c(21, 22, 23, 24)) +
-    xlab("Hellinger's Distance\n*Note axis scale change*") +
-    ylab("Sensitivity") +
-    # ylim(mae_scales) +
-    # xlim(hdist_scale) +
-    facet_wrap(~Region+Species_Archetype, scales = "free_x") +
-    theme_bw(base_size = 12) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "Sens", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, sens_plot)
-
-
-spec_plot <- ggplot() +
-    geom_point(data = plot_dat, aes(x = HellDist, y = Spec, fill = Season, shape = Season, group = Season), size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(data = plot_dat, aes(x = HellDist, y = Spec, color = Season, group = Season), method = "lm", formula = y ~ x, se = F) +
-    scale_fill_manual(name = "Forecast Target Season", values = colors_use) +
-    scale_color_manual(name = "Forecast Target Season", values = colors_use) +
-    # scale_shape_manual(name = "Forecast Target Season", values = c(21, 22, 23, 24)) +
-    xlab("Hellinger's Distance\n*Note axis scale change*") +
-    ylab("Specificity") +
-    # ylim(mae_scales) +
-    # xlim(hdist_scale) +
-    facet_wrap(~Region+Species_Archetype, scales = "free_x") +
-    theme_bw(base_size = 12) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "Spec", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, spec_plot)
-
-## Temperatures for HD...
-t <- plot_dat %>%
-    filter(., Region == "NES") %>%
-    distinct(FitSSTMean, FitSSTSD)
-base_plot <- ggplot(data.frame(x = c(-1, 30)), aes(x = x)) +
-    stat_function(fun = dnorm, args = list(mean = unique(t$FitSSTMean), sd = unique(t$FitSSTSD)), lwd = 2, color = "gray20") +
-    xlab("Sea Surface Temperature") +
-    ylab("Density") +
-    theme_bw(base_size = 16) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "BaseSSTCurve", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, base_plot)
-
-t2 <- plot_dat %>%
-    filter(., Region == "NES")
-fut_plot <- ggplot(data.frame(x = c(-1, 30)), aes(x = x)) +
-    stat_function(fun = dnorm, args = list(mean = unique(t$FitSSTMean)+5, sd = unique(t$FitSSTSD)), lwd = 2, color = "#1b9e77") +
-    xlab("Sea Surface Temperature") +
-    ylab("Density") +
-    theme_bw(base_size = 16) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "FutureSSTCurve", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, fut_plot)
-
-both_plot <- base_plot +
-    stat_function(fun = dnorm, args = list(mean = unique(t$FitSSTMean) + 5, sd = unique(t$FitSSTSD)), lwd = 2, color = "#1b9e77") +
-    xlab("Sea Surface Temperature") +
-    ylab("Density") +
-    theme_bw(base_size = 16) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
-ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "BothSSTCurve", plot_suff, ".jpg"), height = 8, width = 11, dpi = 300, both_plot)
-
-
-#####
-## Sampling variability
-#####
-
-var_exp <- plot_dat %>%
-    select(., Species_Archetype, Region, Scenario, Season, ModelTrainStart, ModelTrainEnd, Month, Year, data, HellDist) %>%
-    distinct()
-
-rbinom_samp_func<- function(val){
-    samps <- rbinom(100, size = 1, prob = val)
-    var_out <- var(samps)
-    return(var_out)
-}
-
-rbinom_var_mean<- function(data){
-    var_return<- sapply(data$HSI, rbinom_samp_func)
-    var_out <- var(var_return)
-    return(var_out)
-}
-
-var_exp <- var_exp %>%
-    mutate(., "RBinom_Variance" = map_dbl(data, rbinom_var_mean))
-
-ggplot() +
-    geom_point(data = var_exp, aes(x = HellDist, y = RBinom_Variance, fill = Season, shape = Season, group = Season), size = 3, pch = 21, alpha = 0.4) +
-    stat_smooth(data = var_exp, aes(x = HellDist, y = RBinom_Variance, color = Season, group = Season), method = "lm", formula = y ~ x, se = F) +
-    scale_fill_manual(name = "Forecast Target Season", values = colors_use) +
-    scale_color_manual(name = "Forecast Target Season", values = colors_use) +
-    # scale_shape_manual(name = "Forecast Target Season", values = c(21, 22, 23, 24)) +
-    xlab("Hellinger's Distance\n*Note axis scale change*") +
-    ylab("rbinom() sample variance") +
-    # ylim(mae_scales) +
-    # xlim(hdist_scale) +
-    facet_wrap(~Region+Species_Archetype, scales = "free_x") +
-    theme_bw(base_size = 12) +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold")
-    )
+ggsave(filename = paste0(here::here("results/"), "Calib.jpg"), width = 18, height = 15, dpi = 300, calib_out)
