@@ -5,8 +5,6 @@ library(tidyverse)
 library(sf)
 library(raster)
 library(zoo)
-
-
 library(lubridate)
 library(gbm)
 library(forecast)
@@ -815,7 +813,9 @@ ggsave(filename = here::here("results/COG_Lon.jpg"), height = 8, width = 11, dpi
 fore_summs_list <- readRDS(here::here("results/fore_summs_list.rds"))
 
 # Unlist into one big dataframe and species archetype column
-names(fore_summs_list)<- scenarios
+scenarios <- c("res", "seas")
+names(fore_summs_list)<- scenarios 
+
 # Get to a nested dataframe...
 fore_summs <- dplyr::bind_rows(fore_summs_list, .id = "Species_Archetype")
 fore_summs$Region<- factor(fore_summs$Region, levels = c("CCS", "NES"), labels = c("CC", "NES"))
@@ -985,22 +985,12 @@ plot_dat <- plot_dat %>%
 
 plot_dat_use <- plot_dat %>%
     ungroup() %>%
-    select(., Species_Archetype, Region, Scenario, ModelTrainStart, ModelTrainEnd, Month, Year, Season, data, PrAUC_Scaled, Cor, RMSE, Calib, PrAUC_Scaled, HellDist) %>%
+    select(., Species_Archetype, Region, Scenario, ModelTrainStart, ModelTrainEnd, Month, Year, Season, data, PrAUC_Scaled, AUC, Cor, RMSE, Calib, PrAUC_Scaled, HellDist) %>%
     distinct()
 
 pr_auc_plot_res <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Mobile resident species archetype"), aes(x = HellDist, y = round(PrAUC_Scaled, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
     geom_point(size = 3, pch = 21, alpha = 0.4) +
     stat_smooth(method = "lm", formula = y ~ x, se = F) +
-    # stat_poly_eq(geom = "text_npc", formula = y ~ x,
-    #            label.x = "left",
-    #            label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), 
-    #            eq.with.lhs = "",
-    #            aes(label = paste("bold(\"", factor(c("Winter", "Spring", "Summer", "Fall"), levels = c("Winter", "Spring", "Summer", "Fall")),
-    #                              " \")*",
-    #                              "italic(hat(y))~`=`~",
-    #                              stat(eq.label),
-    #                              sep = "")),
-    #            parse = TRUE) +
     scale_fill_manual(name = "Prediction Target Season", values = colors_use) +
     scale_color_manual(name = "Prediction Target Season", values = colors_use) +
     xlab("Hellinger's Distance") +
@@ -1018,16 +1008,6 @@ pr_auc_plot_res <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Arche
 pr_auc_plot_seas<- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Seasonal migrant species archetype"), aes(x = HellDist, y = round(PrAUC_Scaled, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
     geom_point(size = 3, pch = 21, alpha = 0.4) +
     stat_smooth(method = "lm", formula = y ~ x, se = F) +
-    # stat_poly_eq(geom = "text_npc", formula = y ~ x,
-    #            label.x = "left",
-    #            label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), 
-    #            eq.with.lhs = "",
-    #            aes(label = paste("bold(\"", factor(c("Winter", "Spring", "Summer", "Fall"), levels = c("Winter", "Spring", "Summer", "Fall")),
-    #                              " \")*",
-    #                              "italic(hat(y))~`=`~",
-    #                              stat(eq.label),
-    #                              sep = "")),
-    #            parse = TRUE) +
     scale_fill_manual(name = "Prediction Target Season", values = colors_use) +
     scale_color_manual(name = "Prediction Target Season", values = colors_use) +
     xlab("Hellinger's Distance") +
@@ -1044,6 +1024,45 @@ pr_auc_plot_seas<- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Arche
 pr_auc_out<- pr_auc_plot_res / pr_auc_plot_seas + plot_layout(guides = "collect")
 ggsave(filename = paste0(here::here("results/"), "PrAUC_Scaled.jpg"), width = 18, height = 15, dpi = 300, pr_auc_out)
 
+# AUC
+auc_plot_res <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Mobile resident species archetype"), aes(x = HellDist, y = round(AUC, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
+    geom_point(size = 3, pch = 21, alpha = 0.4) +
+    stat_smooth(method = "lm", formula = y ~ x, se = F) +
+    scale_fill_manual(name = "Prediction Target Season", values = colors_use) +
+    scale_color_manual(name = "Prediction Target Season", values = colors_use) +
+    xlab("Hellinger's Distance") +
+    ylab("AUC") +
+    ylim(c(0.5, 1)) + 
+    ggtitle("Mobile resident species archetype") +
+    facet_wrap(~ Region) +
+    theme_bw(base_size = 16) +
+    theme(
+        strip.background = element_rect(colour = NA, fill = NA),
+        strip.text = element_text(size = 16, face = "bold"),
+        plot.caption = element_text(hjust = 0) 
+    )
+
+auc_plot_seas<- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Seasonal migrant species archetype"), aes(x = HellDist, y = round(AUC, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
+    geom_point(size = 3, pch = 21, alpha = 0.4) +
+    stat_smooth(method = "lm", formula = y ~ x, se = F) +
+    scale_fill_manual(name = "Prediction Target Season", values = colors_use) +
+    scale_color_manual(name = "Prediction Target Season", values = colors_use) +
+    xlab("Hellinger's Distance") +
+    ylab("AUC") +
+    ggtitle("Seasonal migrant species archetype") +
+    ylim(c(0.5, 1)) + 
+    facet_wrap(~ Region) +
+    theme_bw(base_size = 16) +
+    theme(
+        strip.background = element_rect(colour = NA, fill = NA),
+        strip.text = element_text(size = 16, face = "bold"),
+        plot.caption = element_text(hjust = 0) 
+    )
+auc_out <- auc_plot_res / auc_plot_seas + plot_layout(guides = "collect")
+auc_out
+ggsave(filename = paste0(here::here("results/"), "AUC.jpg"), width = 18, height = 15, dpi = 300, auc_out)
+
+# Calibration
 calib_plot_res <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Mobile resident species archetype"), aes(x = HellDist, y = round(Calib, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
     geom_point(size = 3, pch = 21, alpha = 0.4) +
     stat_smooth(method = "lm", formula = y ~ x, se = F) +
