@@ -273,17 +273,17 @@ all_depth_dat <- all_depth_dat %>%
 
 depth_out <- ggplot() +
         geom_path(data = all_depth_dat, aes(x = MeanVar, y = Prediction, group = Region), lwd = 2, color = "gray20") +
-        # geom_label(data = subset(all_depth_dat, all_depth_dat$Region == "CC"), aes(x = 4500, y = 1.15, label = paste0("Mean = ", round(Mean, 0), "\nSD = ", round(SD, 0))), label.size = NA, size = 6) +
-        # geom_label(data = subset(all_depth_dat, all_depth_dat$Region == "NES"), aes(x = 350, y = 1.15, label = paste0("Mean = ", round(Mean, 0), "\nSD = ", round(SD, 0))), label.size = NA, size = 6) +
+        geom_label(data = subset(all_depth_dat, all_depth_dat$Region == "CC"), aes(x = 4500, y = 1.15, label = paste0("Mean = ", round(Mean, 0), "\nSD = ", round(SD, 0))), label.size = NA, size = 6) +
+        geom_label(data = subset(all_depth_dat, all_depth_dat$Region == "NES"), aes(x = 350, y = 1.15, label = paste0("Mean = ", round(Mean, 0), "\nSD = ", round(SD, 0))), label.size = NA, size = 6) +
         ylab("Habitat suitability") +
-        xlab("Water depth (m)") +
-        ylim(c(0, 1)) +
+        xlab("Depth") +
+        ylim(c(0, 1.2)) +
         theme_bw(base_size = 18) +
         facet_wrap(~ Region, scales = "free_x") +
         ggtitle("Depth species-response curves") +
         theme(
             strip.background = element_rect(colour = NA, fill = NA),
-            strip.text = element_text(size = 28, face = "bold"),
+            strip.text = element_text(size = 16, face = "bold"),
             plot.caption = element_text(hjust = 0)
         )
 ggsave(here::here("results/depth_curve_res.jpg"), plot = depth_out, height = 8, width = 11, dpi = 300)
@@ -409,9 +409,7 @@ future_sst_dat_rug$Season <- factor(future_sst_dat_rug$Season, levels = c("Winte
 
 # Relabeling regions
 all_sst_dat_res$Region <- factor(all_sst_dat_res$Region, levels = c("California_Current", "Northeast_US_Shelf"), labels = c("CC", "NES"))
-all_sst_dat_res$Region <- factor(all_sst_dat_res$Region, levels = c("CC", "NES"), labels = c("California Current", "Northeast U.S. Shelf"))
 future_sst_dat_rug$Region<- factor(future_sst_dat_rug$Region, levels = c("California_Current", "Northeast_US_Shelf"), labels = c("CC", "NES"))
-future_sst_dat_rug$Region<- factor(future_sst_dat_rug$Region, levels = c("CC", "NES"), labels = c("California Current", "Northeast U.S. Shelf"))
 
 sst_out_res_sd_rug <- ggplot() +
     geom_rect(data = all_sst_dat_res, aes(xmin = Mean - SD, xmax = Mean + SD, ymin = 0.01, ymax = 0.21), fill = "gray80") +
@@ -424,12 +422,12 @@ sst_out_res_sd_rug <- ggplot() +
     ylab("Habitat suitability") +
     ylim(c(0, 1)) +
     xlim(c(-1, 30)) +
-    theme_bw(base_size = 18) +
+    theme_bw(base_size = 16) +
     facet_wrap(~Region) +
-    ggtitle("Resident-moble species archetype") +
+    ggtitle("Mobile resident species archetype") +
     theme(
         strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 18, face = "bold"),
+        strip.text = element_text(size = 16, face = "bold"),
         plot.caption = element_text(hjust = 0)
     )
 
@@ -493,9 +491,7 @@ future_sst_dat_rug$Season <- factor(future_sst_dat_rug$Season, levels = c("Winte
 
 # Relabeling regions
 all_sst_dat_seas$Region <- factor(all_sst_dat_seas$Region, levels = c("California_Current", "Northeast_US_Shelf"), labels = c("CC", "NES"))
-all_sst_dat_seas$Region <- factor(all_sst_dat_seas$Region, levels = c("CC", "NES"), labels = c("California Current", "Northeast U.S. Shelf"))
-future_sst_dat_rug$Region <- factor(future_sst_dat_rug$Region, levels = c("California_Current", "Northeast_US_Shelf"), labels = c("CC", "NES"))
-future_sst_dat_rug$Region<- factor(future_sst_dat_rug$Region, levels = c("CC", "NES"), labels = c("California Current", "Northeast U.S. Shelf"))
+future_sst_dat_rug$Region<- factor(future_sst_dat_rug$Region, levels = c("California_Current", "Northeast_US_Shelf"), labels = c("CC", "NES"))
 
 sst_out_seas_sd_rug <- ggplot() +
     geom_rect(data = all_sst_dat_seas, aes(xmin = Mean - SD, xmax = Mean + SD, ymin = 0.01, ymax = 0.21), fill = "gray80") +
@@ -507,13 +503,13 @@ sst_out_seas_sd_rug <- ggplot() +
     ylab("Habitat suitability") +
     ylim(c(0, 1)) +
     xlim(c(-1, 30)) +
-    theme_bw(base_size = 18) +
+    theme_bw(base_size = 16) +
     facet_wrap(~Region) +
-    ggtitle("Seasonally-migrating species archetype") +
+    ggtitle("Seasonal migrant species archetype") +
     theme(
         strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 18, face = "bold"),
-        plot.caption = element_text(hjust = 0)
+        strip.text = element_text(size = 16, face = "bold"),
+        plot.caption = element_text(hjust = 0) 
     )
 
 sst_out_rug <- sst_out_res_sd_rug / sst_out_seas_sd_rug + plot_layout(guides = "collect")
@@ -822,8 +818,7 @@ names(fore_summs_list)<- scenarios
 
 # Get to a nested dataframe...
 fore_summs <- dplyr::bind_rows(fore_summs_list, .id = "Species_Archetype")
-fore_summs$Region<- factor(fore_summs$Region, levels = c("CCS", "NES"), labels = c("California Current", "Northeast U.S. Shelf"))
-fore_summs$Region<- factor(fore_summs$Region, levels = c("California Current", "Northeast U.S. Shelf"), labels = c("California Current", "Northeast U.S. Shelf"))
+fore_summs$Region<- factor(fore_summs$Region, levels = c("CCS", "NES"), labels = c("CC", "NES"))
 
 
 ##### Hellinger's distance timeseries
@@ -845,37 +840,20 @@ hell_dist$Plot_Ymin<- ifelse(hell_dist$Plot_Ymin < 0, 0, hell_dist$Plot_Ymin)
 hell_dist$Season<- factor(hell_dist$Season, levels = c("Winter", "Spring", "Summer", "Fall"), labels = c("Winter", "Spring", "Summer", "Fall"))
 
 hell_dist$Plot_Date <- as.Date(paste(hell_dist$Year, ifelse(hell_dist$Season == "Winter", "01", ifelse(hell_dist$Season == "Spring", "04", ifelse(hell_dist$Season == "Summer", "07", "10"))), "16", sep = "-"))
-hell_dist_plot<- ggplot(data = hell_dist, aes(x = Plot_Date, y = Mean_HellDist, fill = Season, color = Season)) +
+hell_dist_plot<- ggplot() +
     geom_errorbar(data = hell_dist, aes(x = Plot_Date, ymin = Plot_Ymin, ymax = Plot_Ymax, color = Season, group = Season), alpha = 0.4) +
     geom_point(data = hell_dist, aes(x = Plot_Date, y = Mean_HellDist, fill = Season, color = Season), size = 3, alpha = 0.4, pch = 21) +
-    geom_smooth(method = "lm", se = FALSE) +
-    stat_poly_eq(formula = y ~ x, 
-        label.x = "left",
-        label.y = rev(seq(from = 0, to = 0.2, length.out = 4)),
-        eq.with.lhs = "italic(hat(y))~`=`~",
-        aes(label = paste(..eq.label.., sep = "~~~")), parse = TRUE) +
-    stat_fit_glance(method = 'lm',
-                  method.args = list(formula = "y ~ x"),
-                  #geom = 'text',
-                  label.x = "right",
-                  label.y = rev(seq(from = 0, to = 0.2, length.out = 4)), #added to prevent overplotting
-                  aes(label = paste("~italic(p) ==", round(..p.value.., digits = 3),
-                  "~italic(R)^2 ==", round(..r.squared.., digits = 2),
-                  sep = "~")),
-                  parse = TRUE) +
-    # stat_smooth(data = hell_dist, aes(x = Plot_Date, y = Mean_HellDist, fill = Season, color = Season), method = "lm", formula = y ~ x, se = F, alpha = 0.4) +
-    scale_fill_manual(name = "", values = colors_use) +
-    scale_color_manual(name = "", values = colors_use) +
-    scale_y_continuous(name = "Hellinger Distance environmental novelty\nrelative to 1985-2004", limits = c(-0.1, 0.125)) +
+    stat_smooth(data = hell_dist, aes(x = Plot_Date, y = Mean_HellDist, fill = Season, color = Season), method = "lm", formula = y ~ x, se = F, alpha = 0.4) +
+    scale_fill_manual(name = "Prediction Target Season", values = colors_use) +
+    scale_color_manual(name = "Prediction Target Season", values = colors_use) +
+    scale_y_continuous(name = "Hellinger's Distance environmental novelty\nrelative to 1985-2004") +
     xlab("Year") +
-    facet_wrap(~ Region, ncol = 1) +
+    facet_wrap(~ Region) +
     theme_bw(base_size = 16) +
     theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 16, face = "bold"),
-        plot.caption = element_text(hjust = 0) 
+        strip.background = element_rect(colour = NA, fill = NA)
     )
-ggsave(filename = paste0(here::here("results/"), "HellDist_Month_TS.jpg"), height = 8, width = 11, dpi = 300, hell_dist_plot)
+ggsave(filename = paste0(here::here("results/"), "HellDist_TS.jpg"), height = 8, width = 11, dpi = 300, hell_dist_plot)
 
 #####
 ## Deviance explained
@@ -903,26 +881,23 @@ dev_expl_brt(ne_seas)
 ## Estimation curves
 #####
 # Would need to get sst_curve_dat_res object
-all_sst_dat_res$Species_Archetype <- "Resident-mobile"
-all_sst_dat_seas$Species_Archetype <- "Seasonally-migrating warm water"
-
-sst_curve_dat <- all_sst_dat_res %>%
+sst_curve_dat <-  all_sst_dat_res %>%
     bind_rows(., all_sst_dat_seas)
-
 sst_curve_dat_res <- sst_curve_dat %>%
     filter(., Species_Archetype == "Resident-mobile")
 sst_curve_dat_seas <- sst_curve_dat %>%
     filter(., Species_Archetype == "Seasonally-migrating warm water")
 
 
-sst_curve_dat_res$Region <- factor(sst_curve_dat_res$Region, levels = c("CC", "NES"), labels = c("California Current", "Northeast U.S. Shelf"))
-sst_curve_dat_seas$Region<- factor(sst_curve_dat_seas$Region, levels = c("California Current", "Northeast U.S. Shelf"), labels = c("California Current", "Northeast U.S. Shelf"))
+sst_curve_dat_res$Region <- factor(sst_curve_dat_res$Region, levels = c("CC", "NES"), labels = c("California_Current", "Northeast_US_Shelf"))
+sst_curve_dat_seas$Region<- factor(sst_curve_dat_seas$Region, levels = c("CC", "NES"), labels = c("California_Current", "Northeast_US_Shelf"))
 brt_fits_res <- fore_summs %>%
     filter(., Species_Archetype == "res") %>%
     ungroup() %>%
     distinct(Region, BRT_SST_Fit) %>%
     unnest(cols = c(BRT_SST_Fit))
 names(brt_fits_res)[2:3]<- c("oisst_daily", "y")
+brt_fits_res$Region <- factor(brt_fits_res$Region, levels = c("CC", "NES"), labels = c("California_Current", "Northeast_US_Shelf"))
 
 brt_fits_seas <- fore_summs %>%
     filter(., Species_Archetype == "seas") %>%
@@ -930,87 +905,51 @@ brt_fits_seas <- fore_summs %>%
     distinct(Region, BRT_SST_Fit) %>%
     unnest(cols = c(BRT_SST_Fit))
 names(brt_fits_seas)[2:3]<- c("oisst_daily", "y")
+brt_fits_seas$Region <- factor(brt_fits_seas$Region, levels = c("CC", "NES"), labels = c("California_Current", "Northeast_US_Shelf"))
 
-
-# Get fitted data to add as a rug
-cc_res <- readRDS(here::here(paste0("data/train_test_lme_res/cc/Base_1985-01-01_to_2004-01-01.rds")))[[1]] |>
-    mutate("Region" = factor("California Current", levels = c("California Current", "Northeast U.S. Shelf")))
-nes_res <- readRDS(here::here(paste0("data/train_test_lme_res/ne/Base_1985-01-01_to_2004-01-01.rds")))[[1]] |>
-    mutate("Region" = factor("Northeast U.S. Shelf", levels = c("California Current", "Northeast U.S. Shelf")))
-
-fit_sst_dat_res <- bind_rows(cc_res, nes_res) |>
-    mutate(Month = format(Date, "%m")) |>
-    left_join(season_month_df) |>
-    mutate(
-        Season = factor(Season, levels = c("Winter", "Spring", "Summer", "Fall")),
-        y_plot = as.numeric(rescale(as.numeric(Season), to = c(-0.125, -0.01), from = range(as.numeric(Season))))
-    )
-
-sst_op_est_res <- ggplot() +
-    geom_path(data = sst_curve_dat_res, aes(x = MeanVar, y = Prediction), lwd = 2.5, color = "gray20", alpha = 0.5) +
-    geom_path(data = brt_fits_res, aes(x = oisst_daily, y = y), color = "#1b9e77", lwd = 1.5, alpha = 0.5) +
-    geom_point(data = fit_sst_dat_res, aes(y = y_plot, x = oisst_daily, color = Season), shape = "|", size = 1) +
-    # scale_fill_manual(name = "", values = colors_use) +
-    scale_color_manual(name = "", values = colors_use) +
-    xlab(expression("SST " ( degree*C))) +
-    ylab("Habitat suitability") +
-    ylim(c(-0.15, 1)) +
-    xlim(c(-1, 30)) +
-    theme_bw(base_size = 18) +
-    facet_wrap(~Region, ncol = 2) +
-    ggtitle("Resident-mobile species archetype") +
-    theme(
-        strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 18, face = "bold")
-    )
-
-# Get fitted data to add as a rug
-cc_seas <- readRDS(here::here(paste0("data/train_test_lme_seas/cc/Base_1985-01-01_to_2004-01-01.rds")))[[1]] |>
-    mutate("Region" = factor("California Current", levels = c("California Current", "Northeast U.S. Shelf")))
-nes_seas <- readRDS(here::here(paste0("data/train_test_lme_seas/ne/Base_1985-01-01_to_2004-01-01.rds")))[[1]] |>
-    mutate("Region" = factor("Northeast U.S. Shelf", levels = c("California Current", "Northeast U.S. Shelf")))
-
-fit_sst_dat_seas <- bind_rows(cc_seas, nes_seas) |>
-    mutate(Month = format(Date, "%m")) |>
-    left_join(season_month_df) |>
-    mutate(
-        Season = factor(Season, levels = c("Winter", "Spring", "Summer", "Fall")),
-        y_plot = as.numeric(rescale(as.numeric(Season), to = c(-0.125, -0.01), from = range(as.numeric(Season))))
-    )
-
-sst_op_est_seas <- ggplot() +
-    geom_path(data = sst_curve_dat_seas, aes(x = MeanVar, y = Prediction), lwd = 2.5, color = "gray20", alpha = 0.5) +
-    geom_path(data = brt_fits_seas, aes(x = oisst_daily, y = y), color = "#1b9e77", lwd = 1.5, alpha = 0.5) +
-    geom_point(data = fit_sst_dat_seas, aes(y = y_plot, x = oisst_daily, color = Season), shape = "|", size = 1) +
-    # geom_rug(data = fit_sst_dat_seas, aes(x = oisst_daily, color = Season), alpha = 0.75, sides = "b") +
-    scale_color_manual(name = "", values = colors_use) +
-        xlab(expression("SST " ( degree*C))) +
+sst_op_est_res<- ggplot() +
+        geom_path(data = sst_curve_dat_res, aes(x = MeanVar, y = Prediction), lwd = 2.5, color = "gray20", alpha = 0.5) +
+        geom_path(data = brt_fits_res, aes(x = oisst_daily, y = y), color = "#1b9e77", lwd = 1.5, alpha = 0.5) +
+        xlab("SST (deg C)") +
         ylab("Habitat suitability") +
-        ylim(c(-0.15, 1)) +
+        ylim(c(0, 1)) +
+        xlim(c(-1, 30)) +
+        theme_bw(base_size = 18) +
+        facet_wrap(~ Region, ncol = 2) +
+        ggtitle("Resident-mobile species archetype") +
+        theme(
+            strip.background = element_rect(colour = NA, fill = NA),
+            strip.text = element_text(size = 16, face = "bold"),
+            plot.caption = element_text(hjust = 0) 
+        ) 
+sst_op_est_seas<- ggplot() +
+        geom_path(data = sst_curve_dat_seas, aes(x = MeanVar, y = Prediction), lwd = 2.5, color = "gray20", alpha = 0.5) +
+        geom_path(data = brt_fits_seas, aes(x = oisst_daily, y = y), color = "#1b9e77", lwd = 1.5, alpha = 0.5) +
+        xlab("SST (deg C)") +
+        ylab("Habitat suitability") +
+        ylim(c(0, 1)) +
         xlim(c(-1, 30)) +
         theme_bw(base_size = 18) +
         facet_wrap(~ Region, ncol = 2) +
         ggtitle("Seasonally-migrating warm water species archetype") +
         theme(
             strip.background = element_rect(colour = NA, fill = NA),
-            strip.text = element_text(size = 18, face = "bold"),
+            strip.text = element_text(size = 16, face = "bold"),
             plot.caption = element_text(hjust = 0)
         ) 
-sst_op_est_both <- (sst_op_est_res +
-    guides(colour = guide_legend(override.aes = list(size = 8)))) / (sst_op_est_seas +
-    guides(colour = guide_legend(override.aes = list(size = 8)))) 
-sst_op_est_both<- sst_op_est_both + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+sst_op_est_both<- sst_op_est_res / sst_op_est_seas + plot_layout(guides = "collect")   
 ggsave(paste0(here::here("results/sst_op_est.jpg")), plot = sst_op_est_both, height = 8, width = 11) 
 
 ##### 
 ## Prediction statistics
 #####
 plot_dat <- fore_summs
+plot_dat$Region <- factor(plot_dat$Region, levels = c("CC", "NES"), labels = c("CC", "NES"))
 plot_dat <- plot_dat %>%
-    filter(., Region %in% c("California Current", "Northeast U.S. Shelf")) %>%
+    filter(., Region %in% c("CC", "NES")) %>%
     left_join(., season_month_df)
 plot_dat$Season <- factor(plot_dat$Season, levels = c("Winter", "Spring", "Summer", "Fall"))
-plot_dat$Species_Archetype <- factor(plot_dat$Species_Archetype, levels = c("res", "seas"), labels = c("Resident-mobile species archetype", "Seasonally-migrating species archetype"))
+plot_dat$Species_Archetype <- factor(plot_dat$Species_Archetype, levels = c("res", "seas"), labels = c("Mobile resident species archetype", "Seasonal migrant species archetype"))
 mae_scales <- c(0.0, 0.4)
 auc_scales <- c(0.7, 1)
 calib_scales <- c(0.85, 1.001)
@@ -1046,199 +985,136 @@ plot_dat <- plot_dat %>%
 
 plot_dat_use <- plot_dat %>%
     ungroup() %>%
-    dplyr::select(., Species_Archetype, Region, Scenario, ModelTrainStart, ModelTrainEnd, Month, Year, Season, data, PrAUC_Scaled, AUC, Cor, RMSE, Calib, PrAUC_Scaled, HellDist) %>%
+    select(., Species_Archetype, Region, Scenario, ModelTrainStart, ModelTrainEnd, Month, Year, Season, data, PrAUC_Scaled, AUC, Cor, RMSE, Calib, PrAUC_Scaled, HellDist) %>%
     distinct()
 
-pr_auc_plot_res <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Resident-mobile species archetype"), aes(x = HellDist, y = round(PrAUC_Scaled, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
+pr_auc_plot_res <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Mobile resident species archetype"), aes(x = HellDist, y = round(PrAUC_Scaled, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
     geom_point(size = 3, pch = 21, alpha = 0.4) +
-    geom_smooth(method = "lm", se = FALSE) +
-    stat_poly_eq(formula = y ~ x, 
-    label.x = "left",
-    label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)),
-    eq.with.lhs = "italic(hat(y))~`=`~",
-    aes(label = paste(..eq.label.., sep = "~~~")), parse = TRUE) +
-    stat_fit_glance(method = 'lm',
-                  method.args = list(formula = "y ~ x"),
-                  #geom = 'text',
-                  label.x = "right",
-                  label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), #added to prevent overplotting
-                  aes(label = paste("~italic(p) ==", round(..p.value.., digits = 3),
-                  "~italic(R)^2 ==", round(..r.squared.., digits = 2),
-                  sep = "~")),
-                  parse = TRUE) +
-    scale_fill_manual(name = "", values = colors_use) +
-    scale_color_manual(name = "", values = colors_use) +
-    xlab("Hellinger Distance") +
+    stat_smooth(method = "lm", formula = y ~ x, se = F) +
+    scale_fill_manual(name = "Prediction Target Season", values = colors_use) +
+    scale_color_manual(name = "Prediction Target Season", values = colors_use) +
+    xlab("Hellinger's Distance") +
     ylab("Scaled area under the precision-recall curve (PrAUC)") +
     ylim(c(0, 1.06)) +
-    ggtitle("Resident-mobile species archetype") +
-    facet_wrap(~ Region, ncol = 2) +
-    theme_bw(base_size = 18) +
+    ggtitle("Mobile resident species archetype") +
+    facet_wrap(~ Region) +
+    theme_bw(base_size = 16) +
     theme(
         strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 18, face = "bold"),
+        strip.text = element_text(size = 16, face = "bold"),
         plot.caption = element_text(hjust = 0) 
     )
 
-pr_auc_plot_seas<- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Seasonally-migrating species archetype"), aes(x = HellDist, y = round(PrAUC_Scaled, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
+pr_auc_plot_seas<- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Seasonal migrant species archetype"), aes(x = HellDist, y = round(PrAUC_Scaled, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
     geom_point(size = 3, pch = 21, alpha = 0.4) +
-    geom_smooth(method = "lm", se = FALSE) +
-    stat_poly_eq(formula = y ~ x, 
-    label.x = "left",
-    label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)),
-    eq.with.lhs = "italic(hat(y))~`=`~",
-    aes(label = paste(..eq.label.., sep = "~~~")), parse = TRUE) +
-    stat_fit_glance(method = 'lm',
-                  method.args = list(formula = "y ~ x"),
-                  #geom = 'text',
-                  label.x = "right",
-                  label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), #added to prevent overplotting
-                  aes(label = paste("~italic(p) ==", round(..p.value.., digits = 3),
-                  "~italic(R)^2 ==", round(..r.squared.., digits = 2),
-                  sep = "~")),
-                  parse = TRUE) +
-    scale_fill_manual(name = "", values = colors_use) +
-    scale_color_manual(name = "", values = colors_use) +
-    xlab("Hellinger Distance") +
+    stat_smooth(method = "lm", formula = y ~ x, se = F) +
+    scale_fill_manual(name = "Prediction Target Season", values = colors_use) +
+    scale_color_manual(name = "Prediction Target Season", values = colors_use) +
+    xlab("Hellinger's Distance") +
     ylab("Scaled area under the precision-recall curve (PrAUC)") +
     ylim(c(0, 1.06)) +
-    ggtitle("Seasonally-migrating species archetype") +
-    facet_wrap(~ Region, ncol = 2) +
-    theme_bw(base_size = 18) +
+    ggtitle("Seasonal migrant species archetype") +
+    facet_wrap(~ Region) +
+    theme_bw(base_size = 16) +
     theme(
         strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 18, face = "bold"),
+        strip.text = element_text(size = 16, face = "bold"),
         plot.caption = element_text(hjust = 0) 
     )
-pr_auc_out<- pr_auc_plot_res / pr_auc_plot_seas + plot_layout(guides = "collect") & theme(legend.position = 'bottom', legend.text=element_text(size=17))
+pr_auc_out<- pr_auc_plot_res / pr_auc_plot_seas + plot_layout(guides = "collect")
 ggsave(filename = paste0(here::here("results/"), "PrAUC_Scaled.jpg"), width = 18, height = 15, dpi = 300, pr_auc_out)
 
 # AUC
-auc_plot_res <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Resident-mobile species archetype"), aes(x = HellDist, y = round(AUC, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
+auc_plot_res <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Mobile resident species archetype"), aes(x = HellDist, y = round(AUC, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
     geom_point(size = 3, pch = 21, alpha = 0.4) +
-    geom_smooth(method = "lm", se = FALSE) +
-    stat_poly_eq(formula = y ~ x, 
-    label.x = "left",
-    label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)),
-    eq.with.lhs = "italic(hat(y))~`=`~",
-    aes(label = paste(..eq.label.., sep = "~~~")), parse = TRUE) +
-    stat_fit_glance(method = 'lm',
-                  method.args = list(formula = "y ~ x"),
-                  #geom = 'text',
-                  label.x = "right",
-                  label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), #added to prevent overplotting
-                  aes(label = paste("~italic(p) ==", round(..p.value.., digits = 3),
-                  "~italic(R)^2 ==", round(..r.squared.., digits = 2),
-                  sep = "~")),
-                  parse = TRUE) +
-    scale_fill_manual(name = "", values = colors_use) +
-    scale_color_manual(name = "", values = colors_use) +
-    xlab("Hellinger Distance") +
+    stat_smooth(method = "lm", formula = y ~ x, se = F) +
+    scale_fill_manual(name = "Prediction Target Season", values = colors_use) +
+    scale_color_manual(name = "Prediction Target Season", values = colors_use) +
+    xlab("Hellinger's Distance") +
     ylab("AUC") +
     ylim(c(0.5, 1)) + 
-    ggtitle("Resident-mobile species archetype") +
-    facet_wrap(~ Region, ncol = 2) +
-    theme_bw(base_size = 18) +
+    ggtitle("Mobile resident species archetype") +
+    facet_wrap(~ Region) +
+    theme_bw(base_size = 16) +
     theme(
         strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 18, face = "bold"),
+        strip.text = element_text(size = 16, face = "bold"),
         plot.caption = element_text(hjust = 0) 
     )
 
-auc_plot_seas<- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Seasonally-migrating species archetype"), aes(x = HellDist, y = round(AUC, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
+auc_plot_seas<- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Seasonal migrant species archetype"), aes(x = HellDist, y = round(AUC, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
     geom_point(size = 3, pch = 21, alpha = 0.4) +
-    geom_smooth(method = "lm", se = FALSE) +
-    stat_poly_eq(formula = y ~ x, 
-    label.x = "left",
-    label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)),
-    eq.with.lhs = "italic(hat(y))~`=`~",
-    aes(label = paste(..eq.label.., sep = "~~~")), parse = TRUE) +
-    stat_fit_glance(method = 'lm',
-                  method.args = list(formula = "y ~ x"),
-                  #geom = 'text',
-                  label.x = "right",
-                  label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), #added to prevent overplotting
-                  aes(label = paste("~italic(p) ==", round(..p.value.., digits = 3),
-                  "~italic(R)^2 ==", round(..r.squared.., digits = 2),
-                  sep = "~")),
-                  parse = TRUE) +
-    scale_fill_manual(name = "", values = colors_use) +
-    scale_color_manual(name = "", values = colors_use) +
-    xlab("Hellinger Distance") +
+    stat_smooth(method = "lm", formula = y ~ x, se = F) +
+    scale_fill_manual(name = "Prediction Target Season", values = colors_use) +
+    scale_color_manual(name = "Prediction Target Season", values = colors_use) +
+    xlab("Hellinger's Distance") +
     ylab("AUC") +
-    ggtitle("Seasonally-migrating species archetype") +
+    ggtitle("Seasonal migrant species archetype") +
     ylim(c(0.5, 1)) + 
-    facet_wrap(~ Region, ncol = 2) +
-    theme_bw(base_size = 18) +
+    facet_wrap(~ Region) +
+    theme_bw(base_size = 16) +
     theme(
         strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 18, face = "bold"),
+        strip.text = element_text(size = 16, face = "bold"),
         plot.caption = element_text(hjust = 0) 
     )
-auc_out <- auc_plot_res / auc_plot_seas + plot_layout(guides = "collect") & theme(legend.position = 'bottom', legend.text=element_text(size=17))
-ggsave(filename = paste0(here::here("results/"), "AUC_Month.jpg"), width = 18, height = 15, dpi = 300, auc_out)
+auc_out <- auc_plot_res / auc_plot_seas + plot_layout(guides = "collect")
+auc_out
+ggsave(filename = paste0(here::here("results/"), "AUC.jpg"), width = 18, height = 15, dpi = 300, auc_out)
 
 # Calibration
-calib_plot_res <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Resident-mobile species archetype"), aes(x = HellDist, y = round(Calib, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
+calib_plot_res <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Mobile resident species archetype"), aes(x = HellDist, y = round(Calib, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
     geom_point(size = 3, pch = 21, alpha = 0.4) +
-    geom_smooth(method = "lm", se = FALSE) +
-    stat_poly_eq(formula = y ~ x, 
-    label.x = "left",
-    label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)),
-    eq.with.lhs = "italic(hat(y))~`=`~",
-    aes(label = paste(..eq.label.., sep = "~~~")), parse = TRUE) +
-    stat_fit_glance(method = 'lm',
-                  method.args = list(formula = "y ~ x"),
-                  #geom = 'text',
-                  label.x = "right",
-                  label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), #added to prevent overplotting
-                  aes(label = paste("~italic(p) ==", round(..p.value.., digits = 3),
-                  "~italic(R)^2 ==", round(..r.squared.., digits = 2),
-                  sep = "~")),
-                  parse = TRUE) +
-    scale_fill_manual(name = "", values = colors_use) +
-    scale_color_manual(name = "", values = colors_use) +
-    xlab("Hellinger Distance") +
+    stat_smooth(method = "lm", formula = y ~ x, se = F) +
+    # stat_poly_eq(geom = "text_npc", formula = y ~ x,
+    #            label.x = "left",
+    #            label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), 
+    #            eq.with.lhs = "",
+    #            aes(label = paste("bold(\"", factor(c("Winter", "Spring", "Summer", "Fall"), levels = c("Winter", "Spring", "Summer", "Fall")),
+    #                              " \")*",
+    #                              "italic(hat(y))~`=`~",
+    #                              stat(eq.label),
+    #                              sep = "")),
+    #            parse = TRUE) +
+    scale_fill_manual(name = "Prediction Target Season", values = colors_use) +
+    scale_color_manual(name = "Prediction Target Season", values = colors_use) +
+    xlab("Hellinger's Distance") +
     ylab("Calibration") +
-    ylim(c(-0.02, 0.08)) + 
-    ggtitle("Resident-mobile species archetype") +
-    facet_wrap(~ Region, ncol = 2) +
-    theme_bw(base_size = 18) +
+    ylim(c(0, 0.08)) + 
+    ggtitle("Mobile resident species archetype") +
+    facet_wrap(~ Region) +
+    theme_bw(base_size = 16) +
     theme(
         strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 18, face = "bold"),
+        strip.text = element_text(size = 16, face = "bold"),
         plot.caption = element_text(hjust = 0) 
     )
 
-calib_plot_seas<- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Seasonally-migrating species archetype"), aes(x = HellDist, y = round(Calib, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
+calib_plot_seas<- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archetype == "Seasonal migrant species archetype"), aes(x = HellDist, y = round(Calib, 2), fill = Season, color = Season, shape = Season, group = Season, order = Season)) +
     geom_point(size = 3, pch = 21, alpha = 0.4) +
-    geom_smooth(method = "lm", se = FALSE) +
-    stat_poly_eq(formula = y ~ x, 
-    label.x = "left",
-    label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)),
-    eq.with.lhs = "italic(hat(y))~`=`~",
-    aes(label = paste(..eq.label.., sep = "~~~")), parse = TRUE) +
-    stat_fit_glance(method = 'lm',
-                  method.args = list(formula = "y ~ x"),
-                  #geom = 'text',
-                  label.x = "right",
-                  label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), #added to prevent overplotting
-                  aes(label = paste("~italic(p) ==", round(..p.value.., digits = 3),
-                  "~italic(R)^2 ==", round(..r.squared.., digits = 2),
-                  sep = "~")),
-                  parse = TRUE) +
-    scale_fill_manual(name = "", values = colors_use) +
-    scale_color_manual(name = "", values = colors_use) +
-    xlab("Hellinger Distance") +
+    stat_smooth(method = "lm", formula = y ~ x, se = F) +
+    # stat_poly_eq(geom = "text_npc", formula = y ~ x,
+    #            label.x = "left",
+    #            label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), 
+    #            eq.with.lhs = "",
+    #            aes(label = paste("bold(\"", factor(c("Winter", "Spring", "Summer", "Fall"), levels = c("Winter", "Spring", "Summer", "Fall")),
+    #                              " \")*",
+    #                              "italic(hat(y))~`=`~",
+    #                              stat(eq.label),
+    #                              sep = "")),
+    #            parse = TRUE) +
+    scale_fill_manual(name = "Prediction Target Season", values = colors_use) +
+    scale_color_manual(name = "Prediction Target Season", values = colors_use) +
+    xlab("Hellinger's Distance") +
     ylab("Calibration") +
-    ggtitle("Seasonally-migrating species archetype") +
-    ylim(c(-0.02, 0.08)) + 
-    facet_wrap(~ Region, ncol = 2) +
-    theme_bw(base_size = 18) +
+    ggtitle("Seasonal migrant species archetype") +
+    ylim(c(0, 0.08)) + 
+    facet_wrap(~ Region) +
+    theme_bw(base_size = 16) +
     theme(
         strip.background = element_rect(colour = NA, fill = NA),
-        strip.text = element_text(size = 18, face = "bold"),
+        strip.text = element_text(size = 16, face = "bold"),
         plot.caption = element_text(hjust = 0) 
     )
-calib_out<- calib_plot_res / calib_plot_seas + plot_layout(guides = "collect")  & theme(legend.position = 'bottom', legend.text=element_text(size=17))
-ggsave(filename = paste0(here::here("results/"), "Calib_Month.jpg"), width = 18, height = 15, dpi = 300, calib_out)
+calib_out<- calib_plot_res / calib_plot_seas + plot_layout(guides = "collect")
+ggsave(filename = paste0(here::here("results/"), "Calib.jpg"), width = 18, height = 15, dpi = 300, calib_out)
