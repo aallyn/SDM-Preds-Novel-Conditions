@@ -62,7 +62,7 @@ region_dat <- data.frame("Region" = c("cc", "ne"), "Region_Long" = c("California
 ## Global sea surface temperature patterns 
 ## !! WARNING THIS TAKES A WHILE TO RUN!!!!
 #####
-## Global time series and SOM??
+# Global time series and SOM??
 # oisst_path <- "/Users/aallyn/Library/CloudStorage/Box-Box/RES_Data/OISST/oisst_mainstays/regional_timeseries/large_marine_ecosystems/"
 # oisst_all <- list.files(oisst_path, full.names = TRUE)
 # cc_sst <- read.csv(oisst_all[which(grepl("california_current", oisst_all))]) %>%
@@ -85,7 +85,7 @@ region_dat <- data.frame("Region" = c("cc", "ne"), "Region_Long" = c("California
 # sst_anom <- bind_rows(cc_sst, ne_sst) %>%
 #     mutate(., "Region" = factor(Region, levels = c("CCS", "NES"), labels = c("California Current", "Northeast US Continental Shelf"))) %>%
 #     filter(., Year_Plot >= 1985 & Year_Plot <= 2020)
-# sst_anom$DataSubset <- ifelse(sst_anom$Year_Plot <= 2004, "1", "0")
+# sst_anom$DataSubset <- ifelse(sst_anom$Year_Plot <= 2004, "A", "B")
 
 # breaks_use <- c(1985, 1995, 2005, 2015)
 # limits_use <- c(1985, 2020)
@@ -113,7 +113,8 @@ region_dat <- data.frame("Region" = c("cc", "ne"), "Region_Long" = c("California
 
 # sst_anom_plot_dat <- bind_rows(cc_sst, ne_sst) %>%
 #     mutate(., "Year" = as.Date(Year, "%Y")) %>%
-#     filter(., Year >= 1985) 
+#     filter(., Year >= 1985) |>
+#     mutate(Time_Group = ifelse(Year_Plot <= 2004, "A", "B"))
 
 # sst_anom_plot_dat$Region <- factor(sst_anom_plot_dat$Region, levels = c("CCS", "NES"), labels = c("CC", "NES"))
 
@@ -142,6 +143,93 @@ region_dat <- data.frame("Region" = c("cc", "ne"), "Region_Long" = c("California
 #     )
 
 # ggsave(filename = paste0(here::here("pipelines/sim_spp/results/"), "SST_MonthlyAnomalies", ".jpg"), height = 8, width = 11, dpi = 300, sst_anom_plot)
+
+
+# Differences in temperatures
+# str(sst_anom_plot_dat)
+
+#####
+## SST Differences -- how much warming during the testing period?
+#####
+# Training SSTs
+cc_train <- readRDS(here::here(paste0("data/train_test_lme_res/cc/Base_1985-01-01_to_2004-01-01.rds")))[[1]] |>
+    mutate("Region" = factor("California Current", levels = c("California Current", "Northeast U.S. Shelf")))
+nes_train <- readRDS(here::here(paste0("data/train_test_lme_res/ne/Base_1985-01-01_to_2004-01-01.rds")))[[1]] |>
+    mutate("Region" = factor("Northeast U.S. Shelf", levels = c("California Current", "Northeast U.S. Shelf")))
+
+# Testing SSTs
+cc_test <- readRDS(here::here(paste0("data/train_test_lme_res/cc/Base_1985-01-01_to_2004-01-01.rds")))[[2]] |>
+    mutate("Region" = factor("California Current", levels = c("California Current", "Northeast U.S. Shelf")))
+nes_test <- readRDS(here::here(paste0("data/train_test_lme_res/ne/Base_1985-01-01_to_2004-01-01.rds")))[[2]] |>
+    mutate("Region" = factor("Northeast U.S. Shelf", levels = c("California Current", "Northeast U.S. Shelf")))
+
+# Combine
+cc_sst <- bind_rows(cc_train, cc_test) |>
+    filter(Date < "2020-01-01")
+ne_sst<- bind_rows(nes_train, nes_test) |>
+    filter(Date < "2020-01-01")
+
+# Climatologies...
+cc_clim <- cc_sst |>
+    filter(between(Date, as.Date("1985-01-01"), as.Date("2003-12-31"))) |>
+    mutate(Month = format(Date, "%m")) |>
+    group_by(x, y, Month) |>
+    summarize("oisst_clim" = mean(oisst_daily))
+
+cc_anom <- cc_sst |>
+    filter(between(Date, as.Date("2004-01-01"), as.Date("2019-12-31"))) |>
+    mutate(Month = format(Date, "%m")) |>
+    left_join(cc_clim) |>
+    mutate(oisst_anom = oisst_daily - oisst_clim) |>
+    group_by(Date) |>
+    summarize("Monthly_Mean_Anom" = mean(oisst_anom)) |>
+    mutate(Year = format(Date, "%y")) |>
+    group_by(Year) |>
+    summarize("Yearly_Mean_Anom" = mean(Monthly_Mean_Anom))
+mean(cc_anom$Yearly_Mean_Anom)
+
+# Climatologies...
+ne_clim <- ne_sst |>
+    filter(between(Date, as.Date("1985-01-01"), as.Date("2003-12-31"))) |>
+    mutate(Month = format(Date, "%m")) |>
+    group_by(x, y, Month) |>
+    summarize("oisst_clim" = mean(oisst_daily))
+
+ne_anom <- ne_sst |>
+    filter(between(Date, as.Date("2004-01-01"), as.Date("2019-12-31"))) |>
+    mutate(Month = format(Date, "%m")) |>
+    left_join(ne_clim) |>
+    mutate(oisst_anom = oisst_daily - oisst_clim) |>
+    group_by(Date) |>
+    summarize("Monthly_Mean_Anom" = mean(oisst_anom)) |>
+    mutate(Year = format(Date, "%y")) |>
+    group_by(Year) |>
+    summarize("Yearly_Mean_Anom" = mean(Monthly_Mean_Anom))
+ggplot() +
+    geom_point(data = ne_anom, aes(x = Year, y = Yearly_Mean_Anom)) +
+    geom_smooth(data = ne_anom, aes(x = Year, y = Yearly_Mean_Anom), formula = y ~ x, method = "lm", se = TRUE) +
+    stat_poly_eq(formula = y ~ x, 
+        label.x = "left",
+        eq.with.lhs = "italic(hat(y))~`=`~",
+        aes(label = paste(..eq.label.., sep = "~~~")), parse = TRUE)
+mean(ne_anom$Yearly_Mean_Anom)
+
+# Simpler?
+cc_base <- cc_sst |>
+    filter(between(Date, as.Date("1985-01-01"), as.Date("2003-12-31"))) |>
+    summarize(Mean_SST = mean(oisst_daily))
+cc_fut <- cc_sst |>
+    filter(between(Date, as.Date("2004-01-01"), as.Date("2019-12-31"))) |>
+    summarize(Mean_SST = mean(oisst_daily))
+cc_fut - cc_base
+
+ne_base <- ne_sst |>
+    filter(between(Date, as.Date("1985-01-01"), as.Date("2003-12-31"))) |>
+    summarize(Mean_SST = mean(oisst_daily))
+ne_fut <- ne_sst |>
+    filter(between(Date, as.Date("2004-01-01"), as.Date("2019-12-31"))) |>
+    summarize(Mean_SST = mean(oisst_daily))
+ne_fut - ne_base
 
 #####
 ## Response curves
@@ -1053,10 +1141,10 @@ pr_auc_plot_res <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Arche
     geom_point(size = 3, pch = 21, alpha = 0.4) +
     geom_smooth(method = "lm", se = FALSE) +
     stat_poly_eq(formula = y ~ x, 
-    label.x = "left",
-    label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)),
-    eq.with.lhs = "italic(hat(y))~`=`~",
-    aes(label = paste(..eq.label.., sep = "~~~")), parse = TRUE) +
+        label.x = "left",
+        label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)),
+        eq.with.lhs = "italic(hat(y))~`=`~",
+        aes(label = paste(..eq.label.., sep = "~~~")), size = 6, parse = TRUE) +
     stat_fit_glance(method = 'lm',
                   method.args = list(formula = "y ~ x"),
                   #geom = 'text',
@@ -1065,6 +1153,7 @@ pr_auc_plot_res <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Arche
                   aes(label = paste("~italic(p) ==", round(..p.value.., digits = 3),
                   "~italic(R)^2 ==", round(..r.squared.., digits = 2),
                   sep = "~")),
+                  size = 6,
                   parse = TRUE) +
     scale_fill_manual(name = "", values = colors_use) +
     scale_color_manual(name = "", values = colors_use) +
@@ -1087,7 +1176,7 @@ pr_auc_plot_seas<- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Arche
     label.x = "left",
     label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)),
     eq.with.lhs = "italic(hat(y))~`=`~",
-    aes(label = paste(..eq.label.., sep = "~~~")), parse = TRUE) +
+    aes(label = paste(..eq.label.., sep = "~~~")), size = 6, parse = TRUE) +
     stat_fit_glance(method = 'lm',
                   method.args = list(formula = "y ~ x"),
                   #geom = 'text',
@@ -1096,6 +1185,7 @@ pr_auc_plot_seas<- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Arche
                   aes(label = paste("~italic(p) ==", round(..p.value.., digits = 3),
                   "~italic(R)^2 ==", round(..r.squared.., digits = 2),
                   sep = "~")),
+                  size = 6,
                   parse = TRUE) +
     scale_fill_manual(name = "", values = colors_use) +
     scale_color_manual(name = "", values = colors_use) +
@@ -1242,3 +1332,4 @@ calib_plot_seas<- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Archet
     )
 calib_out<- calib_plot_res / calib_plot_seas + plot_layout(guides = "collect")  & theme(legend.position = 'bottom', legend.text=element_text(size=17))
 ggsave(filename = paste0(here::here("results/"), "Calib_Month.jpg"), width = 18, height = 15, dpi = 300, calib_out)
+
