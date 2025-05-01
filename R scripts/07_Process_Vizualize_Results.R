@@ -1148,7 +1148,8 @@ pr_auc_plot_res <- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Arche
     stat_fit_glance(method = 'lm',
                   method.args = list(formula = "y ~ x"),
                   #geom = 'text',
-                  label.x = "right",
+                #   label.x = "right",
+                  label.x = 0.4,
                   label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), #added to prevent overplotting
                   aes(label = paste("~italic(p) ==", round(..p.value.., digits = 3),
                   "~italic(R)^2 ==", round(..r.squared.., digits = 2),
@@ -1180,7 +1181,8 @@ pr_auc_plot_seas<- ggplot(data = subset(plot_dat_use, plot_dat_use$Species_Arche
     stat_fit_glance(method = 'lm',
                   method.args = list(formula = "y ~ x"),
                   #geom = 'text',
-                  label.x = "right",
+                #   label.x = "right",
+                  label.x = 0.4,
                   label.y = rev(seq(from = 0.01, to = 0.19, length.out = 4)), #added to prevent overplotting
                   aes(label = paste("~italic(p) ==", round(..p.value.., digits = 3),
                   "~italic(R)^2 ==", round(..r.squared.., digits = 2),
