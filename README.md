@@ -1,5 +1,5 @@
 # SDM-Preds-Novel-Conditions
-This repository includes the code to support the manuscript "Species distribution model predictability doesn’t always decline under novel temperature conditions." Before moving forward, interested users will also need the "data" folder, which can be accessed [here](10.6084/m9.figshare.25687137) or requested by sending an email to [Andrew Allyn](mailto:aallyn@gmri.org). After receiving the data folder, it should be downloaded and added to this repo in the main folder (i.e., the path `SDM-PREDS-NOVEL-CONDITIONS/data/` must exist).
+This repository includes the code to support the manuscript "Species distribution model predictability doesn’t always decline under novel temperature conditions." Before moving forward, interested users will also need the "data" and "mods" folder, which can be accessed [here](https://doi.org/10.5061/dryad.t4b8gtjd7) (DOI: 10.5061/dryad.t4b8gtjd7) or requested by sending an email to [Andrew Allyn](mailto:aallyn@gmri.org). After receiving the data and mods folders, they should added to this repo in the main folder (i.e., the path `SDM-PREDS-NOVEL-CONDITIONS/data/` must exist).
 
 # Workflow
 Following the manuscript, the general workflow for this analysis includes the following steps and running code in the corresponding scripts:
@@ -14,9 +14,6 @@ Following the manuscript, the general workflow for this analysis includes the fo
  
 # Interacting with the repo
 Depending on computing abilities, it will take a while to run through all of the steps for each of the large marine ecosystems and species archetypes. As a result, we have made all of the raw and interim datasets, model fits, and predictions available. This will allow folks to pick up towards the end of the workflow. While, also allowing the oppportunity to review specific workflow steps and corresponding functions as needed without requiring everything is run from the beginning to the end. or reference, R session info is also pasted below.
-
-## R session info
-
 
 # Questions or suggestions?
 Please feel free to reach out to [Andrew Allyn](mailto:aallyn@gmri.org) with any questions or suggestions!
